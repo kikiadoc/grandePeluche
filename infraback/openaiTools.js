@@ -5,8 +5,9 @@
 //
 const { isMainThread } = require('node:worker_threads'); 
 const workerHelper = require('../infraback/workerHelperClass.js'); 
+const vault = require('../infraback/workerHelperClass.js'); 
 
-const apiKey = "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";
+const apiKey = vault.get('openAI_apikey');
 const headers = ["Authorization: Bearer "+apiKey, "Content-Type: application/json"]
 
 // gestion du cache uniquement dans le main thread
