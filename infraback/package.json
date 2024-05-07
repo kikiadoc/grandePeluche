@@ -1,0 +1,8 @@
+{
+  "dependencies": {
+    "@simplewebauthn/browser": "^9.0.1",
+    "@simplewebauthn/server": "^9.0.1",
+    "fido2-lib": "^3.4.4",
+    "ws": "^8.16.0"
+  }
+}
