@@ -1,19 +1,24 @@
 #!/bin/bash
 #
 # Creation d'un json selon les regles actuelles du firewall iptables
+# Merge des regles des autres firewall
 # Publication du json sur pCloud.com
+# hourly via cron non root
 #
-rootPath="/home/ec2-user/checksec/datastore"
-fwJson="$rootPath/gp-firewall.json"
+rootpath="/home/ec2-user/checksec"
+datastore="$rootpath/datastore"
+fwJson="$datastore/gp-firewall.json"
+awsrules="$rootpath/awsRules.txt"
 
-sudo iptables -L INPUT -vn | awk '/tcp dpt:443/ {if ($3=="DROP" && $4=="tcp") print $8 " " substr($0,index($0,"/*" )) } ' > $rootPath/tmp_1
+sudo iptables -L INPUT -vn | awk '/tcp dpt:443/ {if ($3=="DROP" && $4=="tcp") print $8 " " substr($0,index($0,"/*" )) } ' > $datastore/tmp_1
+
 awk '{ idxSlash=index($1,"/");
 			 if (idxSlash>0)
 				{ printf("%s.%s. ",substr($1,0,idxSlash-1),substr($1,idxSlash+1)) ; }
 			 else
 				{ printf("%s.32. ", $1) ; }
 			 printf("%s\n",substr($0,index($0,$2))) 
-		}'  $rootPath/tmp_1 /home/ec2-user/checksec/awsRules.txt | 
+		}'  $datastore/tmp_1 $awsrules | 
 awk -F '.' '
 			{
 				decimalIp=$1*256*256*256+$2*256*256+$3*256+$4;
@@ -22,7 +27,8 @@ awk -F '.' '
 				printf("%s.%s.%s.%s / %s : %s",$1,$2,$3,$4,$5,substr($0,index($0,$6)) )
 				printf("\n");
 			}
-		' | sort -n | 
+		' |
+sort -n | 
 awk -v current_date="$(date '+%s')" '
 			BEGIN {
 				nbBan=0;
