@@ -12,6 +12,7 @@ function delay(time) {
   return new Promise(resolve => setTimeout(resolve, time));
 } 
 
+/*
 async function doWait(n) {
 	// delay(Math.floor(10000*Math.random())).then( ()=> console.log("finDoWaitDelay") );
 	// await delay(Math.floor(5000+5000*Math.random()))
@@ -20,6 +21,7 @@ async function doWait(n) {
 	console.log('finDowait',n);
 	// await delay(Math.floor(5000));
 }
+*/
 
 exports.httpCallback = async (req, res, method, reqPaths, body, pseudo, pwd) => {
 	switch (method) {

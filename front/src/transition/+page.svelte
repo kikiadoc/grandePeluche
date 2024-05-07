@@ -456,6 +456,11 @@
 	}
 
 	/////////////////////////////////////////////////////////////////////
+	// Gestion de l'assistance
+	/////////////////////////////////////////////////////////////////////
+	let dspAssistance = false;
+
+	/////////////////////////////////////////////////////////////////////
 	// gestion de la liste des challenges
 	/////////////////////////////////////////////////////////////////////
 	const timerStart = 24* 3600000; // 24H
@@ -970,18 +975,33 @@
 				{/each}
 			{/if}
 			<hr/>
-			<div>Si tu souhaites des informations techniques sur la conception du site:</div>
-			<div>
-				👉
-				<a class="active" href="https://docs.google.com/document/d/1VBI37RqX0wh4gUWoYbsyyM-78aylvMDyQgbchBFuS-o/edit?usp=sharing" target="_blank">
-					Deep dive technique
-				</a>
+			<div style="cursor: pointer; color:lightgreen" on:click={() => dspAssistance = !dspAssistance} role="button" tabindex=0 on:keydown={null}>
+				👉 Assistance technique
+				{#if dspAssistance}⏫{:else}⏬{/if}
 			</div>
-			<div>N'utilise l'option suivante qu'en cas de soucis et après avoir contacté Kikiadoc sur discord</div>
-			<div>
-				👉 <span style="cursor: pointer; color: lightgrey" on:click={clearStorage} role="button" tabindex=0 on:keydown={null}>
-				Effacer les données stockées sur ton appareil et liées à ce site: ff14.adhoc.click</span>
-			</div>
+			{#if dspAssistance}
+				<div class="adminCadre">
+					<div>Si tu as des "errreurs imprévues":</div>
+					<div>
+						👉
+						<a class="active" href="https://filedn.eu/lxYwBeV7fws8lvi48b3a3TH/securite/index.html" target="_blank">
+							Vérification du non blocage de ton adresse IP par les mécanismes de sécurité de la Grande Peluche.
+						</a>
+					</div>
+					<div>N'utilise l'option suivante qu'en cas de soucis et après avoir contacté Kikiadoc sur discord</div>
+					<div>
+						👉 <span style="cursor: pointer; color: red" on:click={clearStorage} role="button" tabindex=0 on:keydown={null}>
+						Effacer les données stockées sur ton appareil et liées à ce site: ff14.adhoc.click</span>
+					</div>
+					<div>Si tu souhaites des informations techniques sur la conception du site:</div>
+					<div>
+						👉
+						<a class="active" href="https://docs.google.com/document/d/1VBI37RqX0wh4gUWoYbsyyM-78aylvMDyQgbchBFuS-o/edit?usp=sharing" target="_blank">
+							Deep dive technique
+						</a>
+					</div>
+				</div>
+			{/if}
 		{/if}
 	
 		{#if page != 0}
