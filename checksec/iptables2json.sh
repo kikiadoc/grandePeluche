@@ -1,5 +1,8 @@
 #!/bin/bash
 #
+# Creation d'un json selon les regles actuelles du firewall iptables
+# Publication du json sur pCloud.com
+#
 rootPath="/home/ec2-user/checksec/datastore"
 fwJson="$rootPath/gp-firewall.json"
 
@@ -39,5 +42,5 @@ awk -v current_date="$(date '+%s')" '
 cat $fwJson
 
 curl -v "http://localhost:7070/adminTest/pCloudUploadFirewallRules" --upload-file $fwJson
-echo
+echo Done
 
