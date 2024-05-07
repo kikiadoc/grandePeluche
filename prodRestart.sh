@@ -1,5 +1,6 @@
-#
 #! /bin/bash
+#
+# redemarrage des services de prod incluant le reverse proxy
 #
 # creation du lien
 # sudo ln -s /home/ec2-user/kikibackend.service /etc/systemd/system/kikibackend.service
