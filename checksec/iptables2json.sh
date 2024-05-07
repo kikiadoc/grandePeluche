@@ -48,5 +48,6 @@ awk -v current_date="$(date '+%s')" '
 cat $fwJson
 
 curl -v "http://localhost:7070/adminTest/pCloudUploadFirewallRules" --upload-file $fwJson
+echo
 echo Done
 

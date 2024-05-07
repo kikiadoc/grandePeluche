@@ -1,3 +1,9 @@
+#! /bin/bash
+#
+# Usage: compile STAGING ou PROD
+# Tag des fichiers style date de compil
+# Inclusion des pages ayant été désactivées sur le DEV si besoin
+# Compilation des sources svelte du client
 #
 if [ "$1" = "PROD" ] 
 then
@@ -66,5 +72,6 @@ echo "{ \"name\": \"clientVersion\", \"version\": \"$version\" }" > $datastore/c
 
 echo "${urlApi}/adminTest/forceClientVersion?u=&p="
 curl "$urlApi/adminTest/forceClientVersion?u=&p="
-echo
+echo 
+echo Done
 
