@@ -4,6 +4,9 @@
 # Tag des fichiers style date de compil
 # Inclusion des pages ayant été désactivées sur le DEV si besoin
 # Compilation des sources svelte du client
+# Copy des fichiers dans la directory du serveur static
+# Commit de la version pour vérification par le serveur de synchro multi-joueur
+#
 #
 if [ "$1" = "PROD" ] 
 then
