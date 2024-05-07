@@ -26,12 +26,42 @@ function lodestoneParse(sTexte,fullName) {
   return ff14Id
 }
 
-exports.getFF14Id = async function(prenom,nom,monde) {
+async function getFF14Id(prenom,nom,monde) {
 	const fullName = prenom+" "+nom;
-	ret = await gbl.apiCallHtml("https://ff14.adhoc.click/lodestone/character/?q="+fullName+"&worldname="+monde)
-	if (ret.status!=200) { console.log("****ERREUR LODESTONE**",ret.status); return null;  }
+	const url = "https://fr.finalfantasyxiv.com/lodestone/character/?q="+fullName+"&worldname="+monde
+	// const headers = { 
+			// "UserAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:123.0) Gecko/20100101 Firefox/123.0",
+			// "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+			// "Accept-Encoding": "gzip, deflate, br",
+			// "Accept-Language": "fr,fr-FR;q=0.8,en-US;q=0.5,en;q=0.3",
+	// }
+	console.log("getFF14Id",url);
+	ret = await gbl.apiCallHtml(url,null,null,null)
+	if (ret.status!=200) { console.log("****ERREUR LODESTONE**",ret.status, ret, url); return null;  }
 	return lodestoneParse(ret.text,fullName)
 }
+
+// lodestone check: 200 { ff41Id: } si ok, 202 si introuvable
+async function httpCallback(req, res, method, reqPaths, body, pseudo, pwd) {
+	// pas de verif complete, l'acces doit être fait avec un user="" (dummy)
+	if (pseudo != "") gbl.exception("bad user need dummy",400);
+	switch (method) {
+		case "GET":
+			switch(reqPaths[2]) {
+				case "check":
+					if (!gbl.isPseudoValid(reqPaths[3]) || !gbl.isPseudoValid(reqPaths[4]) || !gbl.isPseudoValid(reqPaths[5]) )
+						gbl.exception("bad pseudo",400)
+					let ff14Id = await getFF14Id(reqPaths[3],reqPaths[4],reqPaths[5])
+					if (ff14Id > 0) gbl.exception({ ff14Id: ff14Id },200)
+					gbl.exception("Pseudo introuvable",202);
+			}
+	}
+	gbl.exception("bad op",400)
+}
+
+
+exports.getFF14Id = getFF14Id
+exports.httpCallback = httpCallback
 
 
 console.log("lodestone loaded");

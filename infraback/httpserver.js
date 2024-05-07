@@ -32,6 +32,7 @@ function listenerFct(req, res) {
       });
 
       req.on("end", async () => {
+				const startDth= Date.now();
         try {
       		const myUrl = new URL("http://localhost" + req.url);
       		const reqPaths = myUrl.pathname.split('/');
@@ -40,7 +41,7 @@ function listenerFct(req, res) {
 				  res.setHeader('Access-Control-Allow-Origin', '*');
           res.setHeader('Content-Type', 'application/json');
           res.setHeader('Cache-Control', 'no-store');
-	  			console.log("-->Req",req.method,req.url.substring(0,req.url.indexOf('&p')));
+	  			console.log("-->Req",req.method,req.url);
 	  			if (req.method=="HEAD") gbl.exception("Not available",404);
 	  			await standardHttpRequest(req,res,req.method,reqPaths,bodyData,pseudo,pwd);
 	  			await callBackHttp(req,res,req.method,reqPaths,bodyData,pseudo,pwd); 
@@ -50,12 +51,12 @@ function listenerFct(req, res) {
           if (e.code && e.msg) {
 						res.statusCode=e.code;
            	res.end(JSON.stringify(e));
-	  				console.log("<--Ret",req.method,req.url.substring(0,req.url.indexOf('&p')),e.code);
+	  				console.log("<--Ret",req.method,req.url,e.code, "ms:", Date.now()-startDth);
           }
           else {
 						res.statusCode=500;
             res.end('{ "code": "500", "msg" : "voir log serveur" }');
-	  				console.log("Ret=",req.method,req.url,e);
+	  				console.log("Ret=",req.method,req.url,e,"ms:", Date.now()-startDth);
           }
         }
       });

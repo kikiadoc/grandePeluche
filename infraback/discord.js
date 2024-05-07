@@ -16,6 +16,7 @@ const discordHeaders = {
 			"Authorization": 'Bot ' + vault.get('discord_token') 
 };
 const mpKikiadoc = "<@289493566278074368>"
+const idKikiadoc = '289493566278074368'
 const discordTrailer =	"\n\nSigné: *L'assistant Discord de la Grande Peluche et porte parole de Kikiadoc*" + 
 												"\n---\nGrande Peluche: <https://ff14.adhoc.click/enjoy>\nSoucis? mp "+mpKikiadoc;
 
@@ -25,7 +26,8 @@ const postChannels = {
 	avant2024: "1182706199414710272", // Kiki'event PROD (l'avant 2024)
 	discussion: "1143946654270111785",  // discussion
 	jungleBoogie: "1189564888570396702",  // Kiki'event PROD jungleBoogie
-	deepAI: '1194723860990398496' // channel de deepai
+	deepAI: '1194723860990398496', // channel de deepai
+	uchronie: '1208202103219036160' // channel de notif de l'event
 }
 
 // Selon le mode PROD ou STAGIN/DEV
@@ -168,6 +170,10 @@ async function discordPostMessagePrive(usrPrmId,chanPrmId,texte) {
 	if (ret.status != 200) console.log("discordPostMessagePrive ERROR ret=:",ret);
 	// retourn le msgId publié
 	return { msgId: ret.id, chanId: chanId }
+}
+// Post un message prive direct Kikiadoc
+async function discordMpKiki(texte) {
+	return await discordPostMessagePrive(idKikiadoc,null,texte);
 }
 // update un message de la GP existant
 async function discordUpdateMessage(chanId,msgId,texte, components, noSignature) {
@@ -916,6 +922,8 @@ function discordActionsDelete(id) {
 ////////////////////////////////////////////
 // Glocal & exports
 ////////////////////////////////////////////
+exports.mpKiki = discordMpKiki
+exports.postMessage = discordPostMessage;
 
 exports.start = async (callback) => {
 	wsCallback = callback

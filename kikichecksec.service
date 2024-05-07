@@ -1,0 +1,16 @@
+[Unit]
+Description={kikichecksec}
+
+[Service]
+Type=simple
+User=ec2-user
+WorkingDirectory=/home/ec2-user/checksec
+RestartSec=10
+StandardOutput=syslog
+StandardError=syslog
+ExecStart=/home/ec2-user/.nvm/versions/node/v16.19.0/bin/node server.js
+Environment="NODE_OPTIONS=--experimental-fetch"
+Environment="NODE_NO_WARNINGS=1"
+
+[Install]
+WantedBy=multi-user.target

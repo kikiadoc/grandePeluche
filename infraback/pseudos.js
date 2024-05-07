@@ -1,7 +1,9 @@
 
 const gbl = require('../infraback/gbl.js');
+const lodestone = require('../infraback/lodestone.js');
 const fs = require('fs');
 const https = require('https');
+const { subtle } = require('node:crypto').webcrypto;
 
 let pseudos = {};
 
@@ -18,15 +20,15 @@ function initPseudos() {
 	console.log("--------------------");
 }
 
-exports.get = (pseudo) => {
+function get(pseudo) {
 	return pseudos[pseudo];
 }
-exports.exist = (pseudo) => {
+function exist(pseudo) {
 	return pseudos[pseudo] != null;
 }
 
 // recherche de pseudo par nick (xx yy @monde)
-exports.getByNick = (nick) => {
+function getByNick(nick) {
 	if (!nick) { console.log("***** getByNick Syntax",nick); return null; }
 	let atPos = nick.indexOf('@');
 	if (atPos <=2) { console.log("***** getByNick Syntax",nick); return null; }
@@ -42,9 +44,8 @@ exports.getByNick = (nick) => {
 	return null;
 }
 
-function savePseudo(pseudo,desc) {
-	desc.lastLogin = Date.now();
-	fs.writeFileSync(gbl.staticFsPath+pseudo+".pseudo", JSON.stringify(desc));
+function savePseudo(desc) {
+	fs.writeFileSync(gbl.staticFsPath+desc.pseudo+".pseudo", JSON.stringify(desc));
 }
 
 // admin pour upgrade version sans FF14ID ver version avec FF14ID
@@ -52,24 +53,46 @@ function forceId(pseudo,ff14Id) {
 	let desc = pseudos[pseudo]
 	if (!desc) gbl.exception("Pseudo not found:"+pseudo,404);
 	desc.ff14Id = ff14Id;
-	savePseudo(pseudo,desc);
+	savePseudo(desc);
 	return desc;
 }
 
-function definePseudo(body) {
+// fonction de crypto eliptic
+const ecKeyImportParams = { name: "ECDSA", namedCurve: "P-384" }
+const ecdsaParams = { name: "ECDSA", hash: "SHA-256" }
+async function pseudoCheckSignature(pseudo,newPwd,jwkPublicKey,hexSignature) {
+	try {
+		let signature = gbl.hexToUint8Array(hexSignature);
+		let importedKey = await subtle.importKey( "jwk", jwkPublicKey, ecKeyImportParams, false, ["verify"] )
+		return await subtle.verify( ecdsaParams, importedKey, signature, new TextEncoder().encode(pseudo+newPwd))
+	}
+	catch (e) {
+		console.log(e);
+		return false;
+	}
+}
+
+async function definePseudo(body) {
 	// recupere les options..
 	const o = JSON.parse(body);
-	const pseudo = o.pseudo;
-	const nom = o.nom;
-	const monde = o.monde;
-	const ff14Id  = o.ff14Id ;
-
+	const pseudo = gbl.capitalizeFirstLetter(gbl.stripBlank(o.pseudo))
+	const nom = gbl.capitalizeFirstLetter(gbl.stripBlank(o.nom))
+	const monde = gbl.capitalizeFirstLetter(gbl.stripBlank(o.monde))
+  const jwkPublicKey = o.jwkPublicKey
 	if (! gbl.isPseudoValid(pseudo)) gbl.exception("Prenom IG invalide", 400);
 	if (! gbl.isPseudoValid(nom)) gbl.exception("Nom IG invalide", 400);
+	if (! gbl.isPseudoValid(monde)) gbl.exception("Monde IG invalide", 400);
+	try { await subtle.importKey( "jwk", jwkPublicKey, ecKeyImportParams, false, ["verify"] ) }
+	catch (e) { gbl.exception("Cle publique invalide", 400) }
+
+	// check lodestone
+	const ff14Id = await lodestone.getFF14Id(pseudo,nom,monde)
+	if (!ff14Id) gbl.exception(pseudo+" "+nom+" @"+monde+" introuvable sur le lodestone", 400);
+	if (ff14Id != o.ff14Id) gbl.exception("FF14ID mismatch entre client et serveur",400);
 
 	// verification selon le ff14id que le pseudo n'existe pas encore
-	let pseudoExist = Object.values(pseudos).find ( (pseudo) => pseudo.ff14Id == ff14Id);
-	if (pseudoExist) gbl.exception("joueur déjà enregistré via ff14Id",403);
+	const pseudoExist = Object.values(pseudos).find ( (pseudo) => pseudo.ff14Id == ff14Id);
+	if (pseudoExist) gbl.exception("Joueur déjà enregistré via ff14Id",403);
 
 	// le ff14Id n'est pas encore connu, construit le pseudo en evitant les pseudos existants
 	let suffixe = "";
@@ -77,25 +100,49 @@ function definePseudo(body) {
 		suffixe = (suffixe!="")? suffixe+1 : 1;
 	const newUser = pseudo+suffixe;
 
-	const newUserDesc = { pseudo: newUser , pwd: gbl.uuidv4() , dth: Date.now(), fullName: pseudo+" "+nom, monde: o.monde, ff14Id: ff14Id };
+	// creation du nouvel user
+	const newUserDesc = { pseudo: newUser, ff14Id: ff14Id, jwkPublicKey: jwkPublicKey, dth: Date.now(), prenom: pseudo, nom: nom, monde: monde };
 	console.log("New User! ", newUserDesc);
 	pseudos[newUser] = newUserDesc;
-	savePseudo(newUser,newUserDesc);
-	console.log('pseudo defini:',newUserDesc);
+	savePseudo(newUserDesc);
 	return newUserDesc;
 }
 
-function checkPseudo(pseudo,password, reqAdmin) {
-	if (!pseudo || !password) gbl.exception("bad credentials", 403);
+// definition du pwd de session en validant par la clef eliptic
+// si mode eliptic non activé, bascule avec la clef proposée (oldpwd,newPublicKey)
+// si pas de clef proposée, retourne null
+async function asyncSetPwdSession(pseudo,oldPwd,newPwd,hexSignature,newPublicKey) {
 	const pseudoDesc = pseudos[pseudo];
-	if ( !pseudoDesc ) gbl.exception("pseudo introuvable", 403);
-	if ( pseudoDesc.pwd != password ) gbl.exception("bad password", 403);
+	if ( !pseudoDesc ) gbl.exception("pseudo introuvable, contacte Kikiadoc", 403);
+	// si pas de clef proposée, problème de version
+	if (!newPublicKey) return null;
+	// mode de bsculement entre classique et eliptic
+	if ( !pseudoDesc.jwkPublicKey) {
+		checkPseudo(pseudo,oldPwd);
+		pseudoDesc.jwkPublicKey = newPublicKey
+		savePseudo(pseudoDesc);
+	}
+	// verification du pseudo+newPwd selon le signature
+	if (! await pseudoCheckSignature(pseudo, newPwd, pseudoDesc.jwkPublicKey, hexSignature)) gbl.exception("Signature crypto elliptique invalide, contacte Kikiadoc", 403);
+	// Note le login eventuel (save pseudo AVANT maj du pwd de session)
+	if ( (!pseudoDesc.lastLogin) || (pseudoDesc.lastLogin < (Date.now()-3600000) ) ) {
+		pseudoDesc.lastLogin = Date.now();
+		savePseudo(pseudoDesc);
+	}
+	// commit du pwd de session
+	pseudoDesc.pwd = newPwd
+	return pseudoDesc
+}
+
+// verification du mot de passe de session
+function checkPseudo(pseudo,password, reqAdmin) {
+	if (!pseudo || !password) gbl.exception("Pseudo ou clef furtive non défini, contacte Kikiadoc", 403);
+	const pseudoDesc = pseudos[pseudo];
+	if ( !pseudoDesc ) gbl.exception("Pseudo introuvable, contacte Kikiadoc", 403);
+	if ( pseudoDesc.pwd != password ) gbl.exception("Mauvaise clef furtive, contacte Kikiadoc", 403);
 	if ( reqAdmin && (pseudo != "Kikiadoc") ) gbl.exception("Not admin", 403);
-	if ( (!pseudoDesc.lastLogin) || (pseudoDesc.lastLogin < (Date.now()-3600000) ) )
-		savePseudo(pseudo,pseudoDesc);
 	return pseudoDesc;
 }
-exports.check = checkPseudo; 
 
 function deletePseudo (pseudo) {
 	const pseudoDesc = pseudos[pseudo];
@@ -104,10 +151,17 @@ function deletePseudo (pseudo) {
 	fs.unlinkSync(gbl.staticFsPath+pseudo+".pseudo");
 	return pseudoDesc;
 }
+function clearServerPublicKey(pseudo) {
+	const pseudoDesc = pseudos[pseudo];
+	if ( !pseudoDesc ) gbl.exception("pseudo introuvable", 403);
+	if ( !pseudoDesc.jwkPublicKey ) gbl.exception("jwkPublicKey introuvable", 403);
+	delete pseudoDesc.jwkPublicKey
+	savePseudo(pseudoDesc);
+}
 
-exports.httpCallback = (req, res, method, reqPaths, body, pseudo, pwd) => {
+async function httpCallback(req, res, method, reqPaths, body, pseudo, pwd) {
 	if (method=="OPTIONS") {
-		res.setHeader('Access-Control-Allow-Methods', 'DELETE, PUT');
+		res.setHeader('Access-Control-Allow-Methods', 'DELETE, PUT, PATCH');
 		gbl.exception("AllowedCORS",200);
 	}
 	else
@@ -118,7 +172,7 @@ exports.httpCallback = (req, res, method, reqPaths, body, pseudo, pwd) => {
 	}
 	else
 	if (method=="PUT") {
-		let ret= definePseudo( body );
+		let ret= await definePseudo( body );
 		gbl.exception(ret,200);
 	}
 	else
@@ -133,10 +187,37 @@ exports.httpCallback = (req, res, method, reqPaths, body, pseudo, pwd) => {
 		checkPseudo(pseudo,pwd,true);
 		gbl.exception(pseudos,200);
 	}
+	else
+	if (method=="PATCH") {
+		checkPseudo(pseudo,pwd,true);
+		Object.keys(pseudos).forEach( (pseudo) => {
+			let pseudoDesc = pseudos[pseudo]
+			if (pseudoDesc.fullName) {
+				// normalize fullName vers prenom/nom
+				let idx = pseudoDesc.fullName.indexOf(" ")
+				let prenom = pseudoDesc.fullName.substring(0,idx);
+				let nom = pseudoDesc.fullName.substring(idx+1);
+				console.log("Normalize:",pseudoDesc.fullName,"->",prenom,nom);
+				pseudoDesc.prenom = prenom;
+				pseudoDesc.nom = nom;
+				delete pseudoDesc.fullName
+				savePseudo(pseudoDesc);
+			}
+		})
+		gbl.exception(pseudos,200);
+	}
 	gbl.exception("bad op pseudos",400);
 }
 
 initPseudos();
+
+exports.get = get
+exports.exist = exist
+exports.getByNick = getByNick
+exports.check = checkPseudo; 
+exports.asyncSetPwdSession = asyncSetPwdSession; 
+exports.httpCallback = httpCallback;
+exports.clearServerPublicKey = clearServerPublicKey;
 
 console.log("Pseudos loaded");
 

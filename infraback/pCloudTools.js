@@ -73,6 +73,7 @@ async function pCloudApiCall(op,prm,method,body) {
 	// si pas d'auth apres login, fail !
 	if (!pCloudAuth) gbl.exception("no auth after pCloud retry login",500);
 	// execute la requete...
+	console.log("pCloud Api:",op,prm,method);
 	json = await pCloudDirect(op,prm,method,body);
 	// si le retourne indique un soucis de login, retente le login puis le call
 	if (json.result==1000 || json.result==2000) {
@@ -83,6 +84,7 @@ async function pCloudApiCall(op,prm,method,body) {
 		console.log("pCloud RETRY CALL !!");
 		json = await pCloudDirect(op,prm,method,body);
 	}
+	console.log("pCloud Api Result:",op,prm,method,json);
 	return json;
 }
 

@@ -1,14 +1,23 @@
 
 const gbl = require('../infraback/gbl.js');
 const pseudos = require('../infraback/pseudos.js');
+const simpleObjects = require('../infraback/simpleObjects.js');
 const WebSocket = require('ws');
 
 const clients = new Map();
 
+let clientPong = {op: "pong", clientVersion: simpleObjects.load("clientVersion").version }
+
+exports.forceClientVersion = () => {
+	let v = simpleObjects.load("clientVersion").version
+	clientPong = {op: "pong", clientVersion: v }
+	return v;
+}
 
 function broadcastClient(o) {
 	let jsonMsg = JSON.stringify(o);
-	console.log("broadcastClient:" , jsonMsg);
+	console.log("broadcastClient:" , o.op);
+	// console.log("broadcastClient:" , jsonMsg);
 	clients.forEach((meta,ws) => {
 		ws.send(jsonMsg);
 	});
@@ -31,9 +40,9 @@ function broadcastPing() {
 setInterval(broadcastPing, 10000);
 
 function broadcastPseudoList () {
-  	let pseudoList = [];
-  	clients.forEach( (meta,ws) => {
-	  	pseudoList.push(meta.pseudo);
+  let pseudoList = [];
+  clients.forEach( (meta,ws) => {
+	 	pseudoList.push(meta.pseudo);
 	});
 	broadcastClient({op : "pseudoList", pseudoList : pseudoList });
 }
@@ -81,8 +90,17 @@ exports.broadcastRaw = (o) => {
 	broadcastClient(o);
 }
 
-exports.broadcastSimpleOp = (txt) => {
-	broadcastClient( { op: txt, dth: Date.now() } );
+exports.broadcastSimpleText = (texte, ding) => {
+	broadcastClient({
+		op : "notif",
+		mp3: (ding)? "Ding" : null,
+		texte : texte,
+		dth: Date.now()
+	});
+}
+
+exports.broadcastSimpleOp = (op, o) => {
+	broadcastClient( { op: op, o: o, status:200, dth: Date.now() } );
 }
 
 exports.start = (wsCallback, port) => {
@@ -105,28 +123,42 @@ exports.start = (wsCallback, port) => {
 	    ws.estVivant=true;
 	    // console.log('pong recu :', id, m);
     });
-    ws.on('message', (m) => {
+    ws.on('message', async (m) => {
 			try {
 				let p = m.toString();
-				let jsonMessage = JSON.parse(p);
-				console.log("WSmessage:",metadata.pseudo,jsonMessage.op);
-				switch (jsonMessage.op) {
+				let jMsg = JSON.parse(p);
+				console.log("WSmessage:",metadata.pseudo,jMsg);
+				switch (jMsg.op) {
 					case "iam":
-						pseudos.check(jsonMessage.pseudo,jsonMessage.pwd);
-						metadata.pseudo = jsonMessage.pseudo;
-						exports.broadcastNotification(jsonMessage.pseudo+ " s'est connecté");
-						broadcastPseudoList();
+						let pseudoDesc = await pseudos.asyncSetPwdSession(jMsg.pseudo,jMsg.pwd,jMsg.newPwd,jMsg.signature,jMsg.publicKey)
+						if (pseudoDesc) {
+							metadata.pseudo = jMsg.pseudo;
+							ws.send(JSON.stringify( { op: "elipticKeyOk", pseudoDesc: pseudoDesc } ));
+							// fermeture des autres connexions du pseudo
+  						clients.forEach( (metaScan,wsScan) => {
+								if (metaScan.pseudo == jMsg.pseudo && wsScan != ws)  {
+									wsScan.send(JSON.stringify({op : "erreur", texte: "Une autre connexion est activée, fermeture de cette connexion"}));
+									wsScan.close();
+								}
+							});
+							exports.broadcastNotification(jMsg.pseudo+ " s'est connecté");
+							broadcastPseudoList();
+						}
+						else {
+							ws.send(JSON.stringify( { op: "erreur", texte:"Version client invalide, recharge la page (F5)" } ));
+							ws.close();
+						}
 						break;
 					case "ping":
-						ws.send(JSON.stringify({op:"pong"}));
+						ws.send(JSON.stringify( clientPong ));
 						break;
 					default:
-						wsCallback(jsonMessage);
+						wsCallback(jMsg);
 				}
 			}
 			catch(ev) {
-				console.log("WS INBOUND invalide:", m.toString() , ev);
-				ws.send(JSON.stringify({op : "erreur", texte : "WS: erreur op ou pseudo/password, contactez Kikiadoc sur discord" }));
+				console.log("WS INBOUND msg:", m.toString(), "exception:" , ev);
+				ws.send(JSON.stringify({op : "erreur", code: ev.code, msg: ev.msg, o: ev.o, name : ev.name }));
 				ws.close();
 			}
     });

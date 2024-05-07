@@ -3,6 +3,7 @@ const collections = require('../infraback/collections.js');
 const jetons = require('../infraback/jetons.js');
 const wsserver = require('../infraback/wsserver.js');
 const pseudos = require('../infraback/pseudos.js');
+const discord = require('../infraback/discord.js');
 
 
 
@@ -23,9 +24,24 @@ class filRouge {
 		this.newFilRouge(this,0);
 	}
 
+	// return le permier pseudo a avoir découvert <i> ou null si aucun n'a découvert
+  getPremierTrouve(i) {
+		let lowDth = Date.now()+1;
+		let premier = null;
+		for (const pseudo in this.colCtx.pseudos) {
+			const trouve = this.colCtx.pseudos[pseudo].trouves[i]
+			if (trouve && trouve.dth < lowDth)  {
+				lowDth = trouve.dth;
+				premier = pseudo;
+			}
+		}
+		return premier;
+	}
+
 	trouve(pseudo, i, r) {
 		if (i!=this.colCtx.currentIdx ) gbl.exception("mauvais index, client unsynch?",400);
-		if (decodeURI(r).toLowerCase() != this.colCtx.currentR.toLowerCase() ) gbl.exception("mauvaise réponse",202);
+		const rep = this.colCtx.currentR.toLowerCase()
+		if (decodeURI(r).toLowerCase() != rep ) gbl.exception("mauvaise réponse",202);
 		let uchPseudo = this.getPseudo(pseudo);
 		let trouve = uchPseudo.trouves[i];
 		if (trouve) gbl.exception("Déjà trouvé, client unsynch?",400);
@@ -33,7 +49,21 @@ class filRouge {
 		collections.save(this.colCtx);
 		// jetons.inc(pseudo,1);
 		wsserver.broadcastCollection(this.colCtx);
-		wsserver.broadcastNotification(pseudo+" a identifie la victime #"+(i+1));
+		wsserver.broadcastNotification("la victime #"+(i+1)+" est "+rep ,pseudo);
+		if (this.getPremierTrouve(i) == pseudo) {
+			try {
+				discord.postMessage((gbl.isProd())? "uchronie":"test",
+					pseudo+" a identifié en premier la victime #"+(i+1)+" de l'Uchronie.\n"+pseudo+" gagne le bonus de découverte de la victime #"+(i+1)+"\n"+
+					"\n**Tu as encore quelques minutes pour indiquer, toi aussi, la réponse. Sinon, il te faudra attendre le prochain pop.**\n"+
+					"\n__La réponse est **"+rep+"**__\n"+
+					"\n__L'énigme résolue est:__\n"+
+					this.colCtx.currentQ
+					, true);
+			}
+			catch (e) {
+				console.log(e)
+			}
+		}
 		gbl.exception("bonne réponse",201);
 	}
 	

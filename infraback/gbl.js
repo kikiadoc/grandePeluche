@@ -5,6 +5,7 @@ exports.grimoireUrlPath= "https://ff14.adhoc.click/grimoire/"
 exports.pCloudUrl= "https://filedn.eu/lxYwBeV7fws8lvi48b3a3TH/"
 exports.vaultPath="/home/ec2-user/.vault.donotdelete";
 
+
 function padValue(v) { return "00".concat(v).slice(-2); } ;
 function padValue3(v) { return "000".concat(v).slice(-3); } ;
 
@@ -16,7 +17,6 @@ exports.stripBlank = str => { return str.replace(/[ \:\.\,]/g,"") };
 exports.isPseudoValid = (str) => { return /^['\-A-Za-z0-9]+$/g.test(str); }
 
 const flagProd = __filename.indexOf('/prod/') > 0
-
 exports.isProd = () => {
 	return flagProd
 }
@@ -53,6 +53,12 @@ exports.jjmmhhmmss = (ms) => {
 	
 }
 
+exports.hexToUint8Array = (hexString) => {
+	const hexStr = (hexString)? hexString :  "0000"
+	var bytes = new Uint8Array(Math.ceil(hexStr.length / 2));
+	for (var i = 0; i < bytes.length; i++) bytes[i] = parseInt(hexStr.substr(i * 2, 2), 16);
+	return bytes
+}
 
 
 exports.uuidv4 = () => {
@@ -75,6 +81,23 @@ exports.exception = (message,code,startDth) => {
 	}
 }
 
+// vérification du parametre, retourne la valeur ou gbl exception 400 sinon
+exports.checkInt = (v,min,max) => {
+	let i = parseInt(v,10);
+	if (isNaN(i) || i < min || i > max) exports.exception("bad int param",400)
+	return i;
+}
+exports.checkFloat = (v,min,max) => {
+	let i = parseFloat(v);
+	if (isNaN(i) || i < min || i > max) exports.exception("bad float param",400)
+	return i;
+}
+
+// return true/false selon la distance quadratique
+exports.isDistance = (x,y,tX,tY,d) => {
+	return (x>=tX-d && x<=tX+d && y>=tY-d && y<=tY+d)
+}
+
 exports.apiCall = async (fullUrl,method,body,headers) => {
 	try {
 		const res = await fetch(fullUrl, {
@@ -95,8 +118,9 @@ exports.apiCall = async (fullUrl,method,body,headers) => {
 }
 
 exports.apiCallHtml = async (fullUrl,method,body,headers) => {
+	let res;
 	try {
-		const res = await fetch(fullUrl, {
+		res = await fetch(fullUrl, {
 			method: method? method: 'GET', 	
 			mode: "cors",
 			cache: "no-store",
@@ -108,7 +132,9 @@ exports.apiCallHtml = async (fullUrl,method,body,headers) => {
 		return json;
 	}
 	catch(e) {
-		console.log(e);
+		console.log("-----------------------");
+		console.log(e,"RES=",res);
+		console.log("-----------------------");
 		return { status: 503 };
 	}
 }
