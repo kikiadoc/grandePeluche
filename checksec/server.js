@@ -15,7 +15,8 @@ const whiteListUrl = [
 	{ m: "GET", u:"//favicon.ico", s: 404},
 	{ m: "GET", u:"//robots.txt", s: 404},
 	{ m: "GET", u:"//sitemap.xml", s: 404},
-	{ m: "OPTIONS", u:"//", s: 404}
+	{ m: "OPTIONS", u:"//", s: 404},
+	{ m: "HEAD", u:"//", s: 404}
 ]
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -104,12 +105,13 @@ function addIpBan(f, l, ip) {
 	let descWhite = getIpWhite(ip);
 	if (descWhite) { console.log("**BAN IP ** In white list",ip); return }
 	// ajout d'un ban ip
-	nowLbl = new Date().toUTCString()
-	
 	console.log("**BAN IP ** ADD IPTABLES ",ip)
 	setIpBan(ip,{ file:f, line: l });
 	// modif des IPTABLES
-	const doCmd = spawn('sudo', ['iptables','-A','INPUT','-s',ip,'-p','tcp','--dport','443','-j','DROP','-m','comment','--comment',ip+' NOT_YET_ANALYZED realtime added rule '+nowLbl])
+	let nowLbl = new Date().toUTCString()
+	let chainId = Math.floor(parseInt(ip,10) / 32) * 32
+	console.log("chain=",chainId);
+	const doCmd = spawn('sudo', ['iptables','-A','NET'+chainId,'-s',ip,'-p','tcp','--dport','443','-j','DROP','-m','comment','--comment',ip+' NOT_YET_ANALYZED realtime added rule '+nowLbl])
 	doCmd.stdout.on('data', (data) => { console.log(`stdout: ${data}`); })
 	doCmd.stderr.on('data', (data) => { console.error(`stderr: ${data}`); })
 	doCmd.on('close', (code) => { console.log(`iptables update exited with code ${code}`); })

@@ -30,7 +30,7 @@
 	import P309 from './P309.svelte';
 	*/
 
-	let version='PROD 24.05.07.22.30';  // SERA MODIFIE LORS DU COMMIT EN STAGING OU PROD ne pas changer
+	let version='PROD 24.05.07.22.34';  // SERA MODIFIE LORS DU COMMIT EN STAGING OU PROD ne pas changer
 
 	// Gestion des reload, refresh etc..
 	onMount(() => {

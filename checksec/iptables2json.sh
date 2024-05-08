@@ -10,7 +10,7 @@ datastore="$rootpath/datastore"
 fwJson="$datastore/gp-firewall.json"
 awsrules="$rootpath/awsRules.txt"
 
-sudo iptables -L INPUT -vn | awk '/tcp dpt:443/ {if ($3=="DROP" && $4=="tcp") print $8 " " substr($0,index($0,"/*" )) } ' > $datastore/tmp_1
+sudo iptables -L -vn | awk '/tcp dpt:443/ {if ($3=="DROP" && $4=="tcp") print $8 " " substr($0,index($0,"/*" )) } ' > $datastore/tmp_1
 
 awk '{ idxSlash=index($1,"/");
 			 if (idxSlash>0)
