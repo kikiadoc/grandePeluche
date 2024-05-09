@@ -30,7 +30,7 @@
 	import P309 from './P309.svelte';
 	*/
 
-	let version='PROD 24.05.08.20.39';  // SERA MODIFIE LORS DU COMMIT EN STAGING OU PROD ne pas changer
+	let version='PROD 24.05.09.18.02';  // SERA MODIFIE LORS DU COMMIT EN STAGING OU PROD ne pas changer
 
 	// Gestion des reload, refresh etc..
 	onMount(() => {
@@ -992,7 +992,7 @@
 					<div>Si tu souhaites des informations techniques sur la conception du site:</div>
 					<div>
 						👉
-						<a class="active" href="https://docs.google.com/document/d/1VBI37RqX0wh4gUWoYbsyyM-78aylvMDyQgbchBFuS-o/edit?usp=sharing" target="_blank">
+						<a class="active" href="https://filedn.eu/lxYwBeV7fws8lvi48b3a3TH/Architecture et conception du site ff14.adhoc.click.pdf" target="_blank">
 							Deep dive technique
 						</a>
 					</div>

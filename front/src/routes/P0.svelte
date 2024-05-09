@@ -214,6 +214,7 @@
 				<input type="button" value="ChanAvant" on:click={() => { newChan="avant2024"} } />
 				<input type="button" value="ChanJungle" on:click={() => { newChan="jungleBoogie"} } />
 				<input type="button" value="ChanDiscussion" on:click={() => { newChan="discussion"} } />
+				<input type="button" value="ChanAnnonces" on:click={() => { newChan="annonces"} } />
 				<input type="button" value="deepAI" on:click={() => { newChan="deepAI"} } />
 				<input type="button" value="uchronie" on:click={() => { newChan="uchronie"} } />
 				Everyone: <input type="checkbox" bind:checked={newAll} on:click={() => { newAll=!newAll; console.log("newAll",newAll)} } />

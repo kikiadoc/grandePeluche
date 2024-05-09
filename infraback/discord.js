@@ -22,7 +22,8 @@ const discordTrailer =	"\n\nSigné: *L'assistant Discord de la Grande Peluche et
 
 // Channels disponibles pour les posts de la grande peluche (pour sécurité)
 const postChannels = {
-	test: "573082763641618434",	 // KIKITEST
+	test: "1238175196859469925",	 // KIKITEST
+	annonces: "1151925290570874951",	 // Kiki's event, canal public annonces
 	avant2024: "1182706199414710272", // Kiki'event PROD (l'avant 2024)
 	discussion: "1143946654270111785",  // discussion
 	jungleBoogie: "1189564888570396702",  // Kiki'event PROD jungleBoogie
