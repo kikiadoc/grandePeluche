@@ -108,10 +108,13 @@ function addIpBan(f, l, ip) {
 	console.log("**BAN IP ** ADD IPTABLES ",ip)
 	setIpBan(ip,{ file:f, line: l });
 	// modif des IPTABLES
+	let ipChunk = ip.split('.')
+	ipChunk[3]='0'
+	let ipRange = ipChunk.join('.')+'/24'
 	let nowLbl = new Date().toUTCString()
-	let chainId = Math.floor(parseInt(ip,10) / 32) * 32
+	let chainId = ( "000"+ Math.floor(parseInt(ip,10) / 16) * 16 ).substr(-3)
 	console.log("chain=",chainId);
-	const doCmd = spawn('sudo', ['iptables','-A','NET'+chainId,'-s',ip,'-p','tcp','--dport','443','-j','DROP','-m','comment','--comment',ip+' NOT_YET_ANALYZED realtime added rule '+nowLbl])
+	const doCmd = spawn('sudo', ['iptables','-A','NT'+chainId,'-s',ipRange,'-p','tcp','--dport','443','-j','DROP','-m','comment','--comment',ip+' NOT_YET_ANALYZED realtime added rule '+nowLbl])
 	doCmd.stdout.on('data', (data) => { console.log(`stdout: ${data}`); })
 	doCmd.stderr.on('data', (data) => { console.error(`stderr: ${data}`); })
 	doCmd.on('close', (code) => { console.log(`iptables update exited with code ${code}`); })
