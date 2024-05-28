@@ -119,7 +119,7 @@ export function countDownTo(dth) {
 
 export function geUtcMsFrom(y,m,d,hh,mm,ss) {
 	let dateLoc = new Date(Date.UTC(y, m-1, d, hh, mm, ss))
-	console.log("date=",dateLoc)
+	// console.log("date=",dateLoc)
 	return dateLoc.valueOf()
 }
 
@@ -259,6 +259,8 @@ let ws = null;
 let wsLastClose = null; // code du dernier close du ws
 let wsTimerError = null; // prochain timer de "timeout erreur" du ws
 let wsTimerPing = null; // prochain timer pour emission d'un ping
+let wsStatus = 0; // etat du websocket
+let apiWaiting = [] // promise pour attente de l'API sur connexion WS
 		
 export function disconnectFromServer(user) {
 	if (ws) {
@@ -305,7 +307,15 @@ export async function connectToServer(cbStatus, cbMessage,clientVersion) {
 					case "elipticKeyOk" :
 						// password temporaire accepté
 						storeIt("pseudoDesc",mBody.pseudoDesc)
-						cbStatus(3);
+						let es = loadIt("elipticSecurity",{})
+						storeIt("pseudoPwd", es.newPwd);
+						wsPing(); // Démarrage de la sequence ping/pong
+						cbStatus(wsStatus=1);
+						// si apicall en attente, libere l'apicall
+						let tmpApiWaiting = apiWaiting
+						apiWaiting=[];
+						console.log("Release queued API call:",tmpApiWaiting.length)
+						tmpApiWaiting.forEach( (e) => {console.log("Release APICALL",e.u); e.o()} )
 						break;
 					case "erreur" :
 						let dspMsg = ""
@@ -325,8 +335,8 @@ export async function connectToServer(cbStatus, cbMessage,clientVersion) {
 			}
 	  };
 		ws.onopen = async (ev) => { 
-			const pseudo = loadIt("pseudo","");
-			const pwd = loadIt("pseudoPwd", "");
+			const pseudo = loadIt("pseudo","nondefini");
+			const pwd = loadIt("pseudoPwd", "00000000-0000-4000-8000-000000000000");
 			let es = loadIt("elipticSecurity", {})
 			if (es.jwkPrivateKey==null || es.jwkPublicKey==null ) {
 				addNotification("Passage en sécurité avancée, création clé crypto elliptique","green",10)
@@ -352,31 +362,29 @@ export async function connectToServer(cbStatus, cbMessage,clientVersion) {
 					publicKey: es.jwkPublicKey,
 					signature: es.signature
 				} ));
-			wsPing(); // Démarrage de la sequence ping/pong
-			cbStatus(1);
 		};
 		ws.onclose = (ev) => {
 			wsLastClose = ev.code;
 			console.log("WS close:",wsLastClose);
 			clearTimeout(wsTimerPing)
-			cbStatus(0);
+			cbStatus(wsStatus=0);
 			// Si la connexion est perdu....
-			newInfoPopup("Déconnecté du server multijoueurs "+wsUrl,
+			newInfoPopup("Déconnecté du server multijoueurs "+wsUrl+ " (code:"+wsLastClose+")",
 									[
-										"Le code technique est "+ wsLastClose,
-										"Si l'indicateur multijoueurs n'est pas vert dans le bandeau en haut, "+
-										"il faut fermer la fenêtre du navigateur, et recommencer",
+										"Il faut recharger la page ou fermer/ouvrir ta fenêtre du navigateur.",
 										"Ce message peut-être normal si tu t'es connecté depuis une autre fenêtre "+
-										"ou si ton équipement passe en veille profonde"
-									],
-									"Si tu as trop de message de ce type, contacte Kikiadoc sur discord");
+										"ou si ton équipement passe en veille"
+									], 
+									"En cas de souci, contacte Kikiadoc sur discord");
 		};
 		ws.onerror = (ev) => {
 			clearTimeout(wsTimerPing)
-			cbStatus(2);
+			cbStatus(wsStatus=2);
 			addNotification("Erreur avec "+wsUrl+", contacter Kikiadoc sur discord","red",60);
 		}; 
   };
+
+
 
 // Retourne toujours un objet avec un champ status de code http
 export async function apiCallExtern(url,method,body)
@@ -400,19 +408,32 @@ export async function apiCallExtern(url,method,body)
 		return { status: 503 };
 	}
 }
-export async function apiCall(url,method, body)
+async function waitWsConnected(url) {
+	// console.log("API QUEUED",url)
+	let prom = new Promise((ok, ko) => {apiWaiting.push( {u: url, o: ok, k: ko}) ; console.log("API queued",url) } );
+	return prom;
+}
+
+// appel de l'api de la grande peluche
+// url, mehod, body, noWaitWS: ne pas attendre le WS pour l'api call
+export async function apiCall(url,method, body, noWaitWs)
 {
 	try {
-		const user = loadIt("pseudo","");
-		const pwd = loadIt("pseudoPwd", "")
+		// si le WS doit être connecte...
+		if (wsStatus!=1 && !noWaitWs) {
+			await waitWsConnected(url)
+		}
+		// console.log("API Call",url);
+		const user = loadIt("pseudo","nondefini");
+		const pwd = loadIt("pseudoPwd", "00000000-0000-4000-8000-000000000000")
 		const res = await fetch(urlApi+url+"?u="+user+"&p="+pwd, {
 			method: method? method: 'GET', 	
 			mode: "cors",
 			cache: "no-store",
 			body: (body)? JSON.stringify(body) : null
 		});
-	  const json = await res.json();
-		json.status = res.status;
+	  const json = await res.json()
+		json.status = res.status
 		if (res.status >= 300)
 				addNotification("Erreur sur "+urlApi+url+ ": "+json.msg+ "("+ res.status+ ") -- contactez Kikiadoc sur discord", "red", 60);
 		return json;
@@ -463,6 +484,22 @@ export function clearStorage()
 	return;
 }
 ///////////////////////////////////////////////////////////////////////////////////////
+// Gestion du play d'un media selon que le 1er click a eu lieu
+///////////////////////////////////////////////////////////////////////////////////////
+// flag de possibilite de play (ie apres une intéraction utilisateur)
+// positionné lors de l'audioTry
+let flagMediaPlayOk = false;
+
+function tryPlay(elt,msg) {
+	if (flagMediaPlayOk)
+		elt.play()
+	else if (msg)
+		addNotification(msg,"yellow",10)
+	else
+		console.log("tryPlay impossible: ",elt.src)
+}
+
+///////////////////////////////////////////////////////////////////////////////////////
 // GESTION DE L'AUDIO
 ///////////////////////////////////////////////////////////////////////////////////////
 const urlMp3 = 'https://filedn.eu/lxYwBeV7fws8lvi48b3a3TH/';
@@ -509,7 +546,8 @@ const audioDescs = {
 	"Depasse": {mp3: urlMp3+"Depasse.mp3#t=00:00:33", vol: 0.7, repeat: 1 },
 	"FrontTitles": {mp3: urlMp3+"FrontTitles.mp3#t=00:00:12", vol: 0.8, repeat: 1 },
 	"Extravaganza": {mp3: urlMp3+"Extravaganza.mp3#t=00:00:00", vol: 1.0, repeat: 1 },
-	"MythsSword": {mp3: urlMp3+"MythsSword.mp3#t=00:00:00", vol: 1.1, repeat: 1 }
+	"MythsSword": {mp3: urlMp3+"MythsSword.mp3#t=00:00:00", vol: 1.1, repeat: 1 },
+	"Applaudissements": {mp3: urlMp3+"Applaudissements.mp3#t=00:00:00", vol: 1.0, repeat: 0 }
 };
 
 // flag d'arret musique d'ambiance
@@ -532,7 +570,7 @@ export function setupAudio(vol,back,ambiance) {
 	ap.muted = false;
 	ap.volume = newAudio.vol;
 	if (audioAmbiance)
-			ap.play();
+			tryPlay(ap)
 	else
 			ap.pause();
 }
@@ -565,8 +603,9 @@ function isAudioPlaying(e) {
 // si pas de fond sonore (onclick sur document, event unique)
 export function audioTry(dth) {
 	console.log("AudioTry ambiance=",audioAmbiance,dth);
+	flagMediaPlayOk = true;
 	if (!audioAmbiance)
-		addNotification("Musique d'ambiance désactivée, clic sur 🔇 en haut à droite pour la réactiver","orange",8)
+		addNotification("Musique d'ambiance désactivée, clic sur 🔇 en haut à droite pour la réactiver","orange",5)
 	playSound();
 }
 
@@ -595,7 +634,7 @@ export function playSound(music,force) {
 		ap.loop = false;
 		ap.muted = false;
 		ap.src= backGround.url
-		ap.play();
+		tryPlay(ap)
 	};
 	
 	if (force || (ap.src != newAudio.url) || !isAudioPlaying(ap) ) {
@@ -606,7 +645,7 @@ export function playSound(music,force) {
 		ap.volume = newAudio.vol;
 		if (audioAmbiance) {
 			console.log("play music -->",ap.src)
-			ap.play();
+			tryPlay(ap)
 		}
 	}
 	else
@@ -624,7 +663,7 @@ export function playDing(mp3) {
 	ap.volume = ding.vol;
 	ap.muted = false;
 	console.log("playDing",mp3,"ap.src:", ap.src)
-	ap.play(); 
+	tryPlay(ap)
 }
 
 export function audioPause() {
@@ -637,7 +676,7 @@ export function audioResume() {
 	const vp=document.getElementById("video");
 	// si video en cours ne pas resume l'audio
 	if (isAudioPlaying(vp)) { console.log('Video playing.. no audio resume'); return; }
-	if (ap && ap.src.indexOf("mp3")>0 && audioAmbiance) { ap.play(); }
+	if (ap && ap.src.indexOf("mp3")>0 && audioAmbiance) tryPlay(ap);
 }
 ///////////////////////////////////////////////////////////////////////////////////////
 // GESTION DE LA VIDEO
@@ -668,7 +707,7 @@ export function playVideo(mp4,cb,tTime) {
 	divVideo.style.display="block";
 	video.src=urlImg+mp4+".mp4" + ((tTime)? "#t="+tTime :"") ;
 	video.volume= audioVolume*0.8; // manque la parametrage d'equalizer des videos
-	video.play();
+	tryPlay(video,"Démarrage vidéo impossible, Clique sur la vidéo")
 }
 
 export function closeVideo() {

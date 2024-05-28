@@ -331,7 +331,7 @@
 	<Entree statusVideos={statusVideos} bind:grimoire={grimoire} nom="mascottes" texte="Les mascottes de l'île (décembre 2022)"
 			mp4="ff-5-mascottes">
 			<div class="synthese">
-				A l'occasion de la Noël 2022, un voyage sur une félicit�� insulaire permet de se réchauffer!
+				A l'occasion de la Noël 2022, un voyage sur une félicité insulaire permet de se réchauffer!
 			</div>
 			<div class="chapitre">
 				Les Aventuriers ont identifié les mascottes en lévitation.
@@ -843,7 +843,7 @@
 	<Entree statusVideos={statusVideos} bind:grimoire={grimoire} nom="ultimate_temps" texte="Le carnet du Temps"
 			mp4="ff-3-temps">
 			<div class="synthese">
-				Deux carnets sont fondamentaux car ils d��terminent les voyages.
+				Deux carnets sont fondamentaux car ils déterminent les voyages.
 				Le premier est caché dans la chambre du temps.
 				Les Ultimes Aventuriers vont le découvrir!
 			</div>

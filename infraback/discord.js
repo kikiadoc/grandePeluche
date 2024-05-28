@@ -22,13 +22,14 @@ const discordTrailer =	"\n\nSigné: *L'assistant Discord de la Grande Peluche et
 
 // Channels disponibles pour les posts de la grande peluche (pour sécurité)
 const postChannels = {
-	test: "1238175196859469925",	 // KIKITEST
-	annonces: "1151925290570874951",	 // Kiki's event, canal public annonces
-	avant2024: "1182706199414710272", // Kiki'event PROD (l'avant 2024)
-	discussion: "1143946654270111785",  // discussion
-	jungleBoogie: "1189564888570396702",  // Kiki'event PROD jungleBoogie
-	deepAI: '1194723860990398496', // channel de deepai
-	uchronie: '1208202103219036160' // channel de notif de l'event
+	test: 					"1238175196859469925",	// KIKITEST
+	annonces: 			"1151925290570874951",	// Kiki's event, canal public annonces
+	avant2024: 			"1182706199414710272",	// Kiki'event PROD (l'avant 2024)
+	discussion: 		"1143946654270111785",  // discussion
+	jungleBoogie: 	"1189564888570396702",  // Kiki'event PROD jungleBoogie
+	deepAI: 				"1194723860990398496",	// channel de deepai
+	uchronie: 			"1208202103219036160",	// channel de notif de l'event
+	innommable: 		"1241849680598401075"		// channel de l'innommable
 }
 
 // Selon le mode PROD ou STAGIN/DEV
@@ -278,7 +279,7 @@ async function discordProcessSetupPseudo(usrId,tblMots) {
 	if (!ff14Id) {
 		await discordUpdateMessage(chanId,msgId,"Je n'ai pas trouvé ton pseudo FF14 sur le lodestone.\n"+
 			"J'ai cherché "+prenom+" "+nom+" sur le monde "+monde+", alors "+
-			"peut-être l'as tu mal orthographié, vérifie bien que c'est ton exact pseudo sur FF14 et "+
+			"peut-être l'as tu mal orthographié, vérifie bien que c'est ton exact pseudo sur FF14 (en particulier si tu as une apostrophe dans ton pseudo) et "+
 			"redis-moi qui tu es par un message\n**jesuis __prenom__ __nom__ __monde__**	");
 		return
 	}
@@ -289,7 +290,7 @@ async function discordProcessSetupPseudo(usrId,tblMots) {
 		// le FF14ID existe dans le discord
 		await discordUpdateMessage(chanId,msgId,"**__Ton pseudo FF14 est déjà associé à un Aventurier sur ce discord__**.\n"+
 			"Je ne peux donc te l'attribuer ni te donner accès au reste de ce discord.\n"+
-			"C'est une anomalie importante, la cause la plus grave étant que quelqu'un d'autre a déjà utilisé ton pseudo FF14.\n"+
+			"C'est une anomalie importante, la cause la plus grave étant que quelqu'un d'autre a déjà utilisé ton compte FF14.\n"+
 			"Aussi, **__il FAUT que tu contactes__** "+mpKikiadoc );
 		return
 	}
@@ -300,13 +301,16 @@ async function discordProcessSetupPseudo(usrId,tblMots) {
 	// le FF14ID n'est pas utilisé coté discord
 	// on peut donc mettre à jour le discord concerné
 	// PATCH /guilds/{guild.id}/members/{user.id} {nick: xxx, roles:[idrole]}
+	// le nick ne doit pas dépasser 32 caractères
+	let nick = prenom+" "+nom+" @"+monde 
+	if (nick.length > 32) nick = nick.substring(0,30) + ".."
 	const discordUrl=discordUrlPrefix+"/guilds/"+reqId.guild.id+"/members/"+usrId
-	const discordBody= { nick: prenom+" "+nom+" @"+monde , roles: [runCtx.roleId] }
+	const discordBody= { nick: nick , roles: [runCtx.roleId] }
 	console.log("PATCH:",discordUrl,"body:",discordBody);
 	let ret = await gbl.apiCall(discordUrl,'PATCH',discordBody,discordHeaders);
 	if (ret.status != 200) {
 		console.log("***** Erreur discord:",ret);
-		await discordUpdateMessage(chanId,msgId,"J'ai un soucis technique pour honorer ta requête ("+ret.status+"/"+ret.code+"), refais ta tentative et si cela se reproduit, MP "+mpKikiadoc)
+		await discordUpdateMessage(chanId,msgId,"J'ai un soucis technique avec Discord pour honorer ta requête ("+ret.status+"/"+ret.code+"), refais ta tentative et si cela se reproduit, MP "+mpKikiadoc)
 		return;
 	}
 	
@@ -316,13 +320,14 @@ async function discordProcessSetupPseudo(usrId,tblMots) {
 	// Message de confirmation que tout est OK
 	await discordUpdateMessage(chanId,msgId,
 		"J'ai eu confirmation du Lodestone de FF14 de l'existance de ton perso (FF14ID="+ff14Id+").\n"+
-		"Je t'ai attribué le pseudo **"+prenom+" "+nom+" @"+monde+"** sur le discord **"+reqId.guild.name+"**, "+
+		"Je t'ai attribué le pseudo **"+nick+"** sur le discord **"+reqId.guild.name+"**, "+
 		"et nommé Aventurier, afin que tu puisses accéder à l'ensemble du discord\n"+
 		"J'ai aussi fait le lien entre la Grande Peluche et Discord, "+
 		"afin que tu puisses pleinement profiter de futurs challenges.\n"+
 		"Enfin, j'ai inscris ton pseudo sur le Grimoire de Sécurité de la Grande Peluche," +
 		"afin que personne d'autre que toi ne puisse utiliser ton perso FF14 sur ce discord.\n" +
-		"Clic <#"+runCtx.welcomeId+"> pour retourner directement sur le discord" 
+		"Clic <#"+runCtx.welcomeId+"> pour retourner directement sur le discord\n" +
+		"**__N'oublie pas de i'inscrire aussi sur le site de la Grande Peluche__**" 
 	);
 }
 

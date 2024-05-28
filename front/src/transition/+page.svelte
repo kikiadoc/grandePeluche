@@ -12,22 +12,10 @@
 
 	import P0 from './P0.svelte';
 	import P1 from './P1.svelte';
+	import P310 from './P310.svelte'; // Nommer l'innomable
 	/*
+	// tag particulier pour l'inport hors environnemnt de dev
 	// ONLYCOMPILED	import P201 from './P_201.svelte';
-	// OBSOLETE	import P202 from './P_202.svelte'; 
-	// ONLYCOMPILED	import P203 from './P203.svelte'; 
-	// ONLYCOMPILED	import P204 from './P204.svelte'; 
-	// ONLYCOMPILED import P205 from './P205.svelte'; 
-	// ONLYCOMPILED import P206 from './P206.svelte'; 
-	import P300 from './P300.svelte';
-	import P301 from './P301.svelte';
-	import P302 from './P302.svelte';
-	import P303 from './P303.svelte';
-	import P304 from './P304.svelte';
-	import P305 from './P305.svelte';
-	import P306 from './P306.svelte';
-	import P308 from './P308.svelte';
-	import P309 from './P309.svelte';
 	*/
 
 	let version=null;  // SERA MODIFIE LORS DU COMMIT EN STAGING OU PROD ne pas changer
@@ -51,24 +39,17 @@
 			page = 0; // force login
 	}
 	function initAfterKeyValidation() {
-		let es = loadIt("elipticSecurity", {})
-		if (es.newPwd) {
-			console.log("es.newPwd", es.newPwd)
-			storeIt('pseudoPwd',es.newPwd)
-			playSound();
-			loadJetons();
-			initList();
-			checkPageValid();
-		}
-		else
-			addNotification("Erreur initAfterKeyValidation","red",60)
+		playSound();
+		loadJetons();
+		initList();
+		checkPageValid();
 	}
 
 	//
 	// Configuration générale
 	//
-	let pseudo = loadIt('pseudo',"");
-	let pseudoPwd = loadIt('pseudoPwd',"");
+	let pseudo = loadIt('pseudo',"")
+	let pseudoPwd = loadIt('pseudoPwd',"")
 	let lastPage = -1;
 	let page = loadIt('page',0);
 	let pageDone = loadIt('pageDone',[]);
@@ -76,10 +57,18 @@
 	let pageDesc = null;
 	let pseudoList=[]; //chargement par WS
 	let showAdmin = false; // affiche les infos d'admin
+	// welcome
+	let dspWelcome = loadIt('dspWelcome',true)
+	$: storeIt('dspWelcome', dspWelcome);	
 
 	//
 	// Liste des pages de jeu
 	// (page list n'est pas const pour permettre le refresh)
+	// option rares: 
+	// always: true indique qu'il faut toujours afficher
+	// betaTest: true inidique que c'est disponible en avant premiere
+	// prereq: nnn element prérequis (doit être dans pageDone)
+	// viewAfter: true permet d'afficher le composant apres la fin
 	let pageList = [
 		{n: 1, texte: "Visiter l'IPA, l'Institut Peluchique de l'Audiovisuel", music: "Alice",
 		 start: geUtcMsFrom(2024, 1, 2, 19, 0, 0),
@@ -88,108 +77,12 @@
 		 always: true,
 		 component: P1
 		},
-		/*
-		{n: 300, texte: "L'initiatique du Kiki's Event VIII", music: "FrontTitles",
-		 start: geUtcMsFrom(2024, 3, 21, 19, 0, 0),
-		 end: geUtcMsFrom(2024, 3, 22, 19, 0, 0),
-		 betaTest: true,
-		 component: P300
-		},
-		{n: 301, texte: "Les victimes de l'Uchronie", music: "ForeverYoung", 
-		 start: geUtcMsFrom(2024, 3, 22, 19, 0, 0),
-		 end: geUtcMsFrom(2024, 4, 3, 18, 0, 0),
-		 preReq: 300,
-		 component: P301
-		}, 
-		{n: 302, texte: "Le Schisme du temps", music: "MythsSword", 
-		 start: geUtcMsFrom(2024, 3, 23, 19, 0, 0),
-		 end: geUtcMsFrom(2024, 3, 31, 18, 0, 0),
-		 preReq: 300,
-		 component: P302
-		}, 
-		{n: 303, texte: "Les Lieux Déracinés", music: "celebrations", 
-		 start: geUtcMsFrom(2024, 3, 24, 19, 0, 0),
-		 end: geUtcMsFrom(2024, 3, 31, 18, 0, 0),
-		 phase: 0,
-		 preReq: 300,
-		 component: P303
-		}, 
-		{n: 304, texte: "Le retour spatio-temporel", music: "outfoxing", 
-		 start: geUtcMsFrom(2024, 3, 25, 19, 0, 0),
-		 end: geUtcMsFrom(2024, 3, 31, 18, 0, 0),
-		 preReq: 300,
-		 component: P304
-		}, 
-		{n: 305, texte: "L'explosion du Laboratoire", music: "Paradise-Vangelis", 
-		 start: geUtcMsFrom(2024, 3, 27, 19, 0, 0),
-		 end: geUtcMsFrom(2024, 3, 31, 18, 0, 0),
-		 preReq: 300,
-		 component: P305
-		}, 
-		{n: 306, texte: "Le cristal de l'Uchronie", music: "Depasse", 
-		 start: geUtcMsFrom(2024, 3, 28, 19, 0, 0),
-		 end: geUtcMsFrom(2024, 3, 31, 18, 0, 0),
-		 preReq: 300,
-		 component: P306
-		}, 
-		{n: 307, texte: "La Restauration du Temps", music: "Wald", 
-		 start: geUtcMsFrom(2024, 3, 29, 19, 0, 0),
-		 end: geUtcMsFrom(2024, 3, 31, 20, 0, 0),
-		 phase: 1,
-		 incantDth: geUtcMsFrom(2024, 3, 31, 18, 0, 0),
-		 preReq: 300,
-		 component: P303
-		}, 
-		{n: 308, texte: "Le Dirac des Quatre", music: "Extravaganza", 
-		 start: geUtcMsFrom(2024, 4, 1, 18, 0, 0),
-		 end: geUtcMsFrom(2024, 4, 4, 18, 0, 0),
-		 preReq: 300,
-		 component: P308
-		}, 
-		{n: 309, texte: "Epilogue du Kiki's Event VIII", music: "FarmerBelleJournee", 
-		 start: geUtcMsFrom(2024, 4, 2, 18, 0, 0),
-		 end: geUtcMsFrom(2024, 4, 5, 18, 0, 0),
-		 preReq: 300,
-		 component: P309
-		}, 
-		{n: 206, texte: "DeepAI", music: "BienMal",
-		 start: new Date(2024, 1-1, 20, 20, 0, 0).valueOf(),
-		 end: new Date(2024,1-1, 30, 20, 0, 0).valueOf(),
+		{n: 310, texte: "Nommer l'Innommable", music: "FrontTitles",
+		 start: geUtcMsFrom(2024, 5, 24, 18, 0, 0),
+		 end: geUtcMsFrom(2024, 6, 17, 18, 0, 0),
 		 viewAfter: true,
-		 // ONLYCOMPILED component: P206
-		}, 
-		{n: 205, texte: "Jungle Boogie", music: "Muppet",
-		 start: new Date(2024, 1-1, 5, 20, 0, 0).valueOf(),
-		 end: new Date(2024,2-1, 9, 20, 0, 0).valueOf(),
-		 viewAfter: true,
-		 // ONLYCOMPILED component: P205
-		}, 
-		{n: 204, texte: "Les Jardins Suspendus", music: "Alex-nes",
-		 start: new Date(2023, 12-1, 9, 20, 0, 0).valueOf(),
-		 end: new Date(2023,12-1, 23, 20, 0, 0).valueOf(),
-		 viewAfter: true,
-		 // ONLYCOMPILED component: P204
-		}, 
-		{n: 203, texte: "Brocéliande", music: "Benabar-foret-extrait",
-		 start: new Date(2023, 10-1, 18, 20, 0, 0).valueOf(),
-		 end: new Date(2023, 10-1, 21, 21, 0, 0).valueOf(),
-		 viewAfter: true,
-		 // preReq: 202,
-		 // ONLYCOMPILED component: P203 
-		}, 
-		{n: 202, texte: "Quête initiatique de Brocéliande", music: "Benabar-foret-extrait",
-		 start: new Date(2023, 10-1, 11, 20, 0, 0).valueOf(),
-		 end: new Date(2023, 10-1, 21, 21, 0, 0).valueOf(),
-		 viewAfter: true,
-		 // ONLYCOMPILED component: P202
-		},
-		{n: 201, texte: "La transition magique", music: "Benabar-foret-extrait",
-		 start: new Date(2023, 10-1, 11, 20, 0, 0).valueOf(),
-		 end: new Date(2023, 9-1, 8, 21, 0, 0).valueOf(),
-		 viewAfter: true,
-		 // ONLYCOMPILED component: P201
-		},
-		*/
+		 component: P310
+		}
 	];
 
 	function checkPageValid() {
@@ -204,7 +97,7 @@
 	/////////////////////////////////////////////////////////////////////
 	let audioVolume = loadIt('audioVolume',30); // volume relatif des audios et videos
 	$: storeIt('audioVolume', audioVolume);
-	let audioBack = loadIt('audioBack',true); // flag de pause automatique désactivée
+	let audioBack = loadIt('audioBack',false); // flag de pause automatique désactivée
 	$: storeIt('audioBack', audioBack);
 	let audioAmbiance = loadIt('audioAmbiance',true); // flag d'activation musique d'ambiance
 	$: storeIt('audioAmbiance', audioAmbiance);
@@ -246,18 +139,18 @@
 
 	let wsCallComponents = new Set();
 	let wsStatus = 0;
-	// v: 0 disconnect, 1 connected, 2 erreur, 3 transient: validation token
+	// v: 0 disconnect, 1 connected, 2 erreur
 	function wsCbStatus(v) {
 		switch(v) {
 			case 0:
-			case 1:
-			case 2:
 				wsStatus = v;
 				break;
-			case 3:
-				let es = loadIt("elipticSecurity",{})
-				storeIt("pseudoPwd", pseudoPwd = es.newPwd);
+			case 1:
+				wsStatus = v;
 				initAfterKeyValidation()
+				break;
+			case 2:
+				wsStatus = v;
 				break;
 			default:
 				addNotification("Erreur wsCbStatus="+v+", contacter Kikiadoc","red",60)
@@ -344,7 +237,7 @@
 		let ret = null; // resulta de requete
 		addNotification("Vérif / lodestone...")
 		// acces lodestone via proxy sur adhoc.click (pour eviter les reponses opaques)
-		ret = await apiCall("/lodestone/check/"+newPseudo+"/"+nomIG+"/"+monde)
+		ret = await apiCall("/lodestone/check/"+newPseudo+"/"+nomIG+"/"+monde,"GET",null,true)
 		if (ret.status==202) {
 			newInfoPopup("Tu es inconnu du lodestone",
 									 ["Je n'ai pas trouvé "+newPseudo+" "+nomIG+"@"+monde+" sur le Lodestone de FF14",
@@ -379,7 +272,8 @@
 		}
 		addNotification("Enregistrement de ton perso sur le server...","green",3)
 		ret = await apiCall("/pseudos","PUT",
-			{pseudo: newPseudo, nom: nomIG, monde: monde, ff14Id: ff14Id, jwkPublicKey: jwkPublicKey}
+			{pseudo: newPseudo, nom: nomIG, monde: monde, ff14Id: ff14Id, jwkPublicKey: jwkPublicKey},
+			true
 		);
 		if (ret.status==200) {
 			addNotification(ret.o.pseudo+" enregistré");
@@ -838,7 +732,7 @@
 	<notifications id="notifications"></notifications>
 	<titre>
 		<div on:keydown={null} on:click={() => { page = 0; window.scroll(0,0); }} role="button" tabindex="0">
-			<span style="font-size: 1.0em">Kiki's mini-jeux</span>
+			<span style="font-size: 1.0em">La Grande Peluche</span>
 			<br/>
 			<span style="font-size: 0.6em">Enjoy ({version || 'DEV'})</span>
 		</div>
@@ -981,11 +875,11 @@
 			</div>
 			{#if dspAssistance}
 				<div class="adminCadre">
-					<div>Si tu as des "errreurs imprévues":</div>
+					<div>Si tu as des "errreurs imprévues" ou un soucis d'accès au site:</div>
 					<div>
 						👉
 						<a class="active" href="https://filedn.eu/lxYwBeV7fws8lvi48b3a3TH/securite/index.html" target="_blank">
-							Vérification du non blocage de ton adresse IP par les mécanismes de sécurité de la Grande Peluche.
+							Affichage de la page de diagnostic et assistance du site
 						</a>
 					</div>
 					<hr />
@@ -1010,7 +904,9 @@
 			<!-- inclusion dynamique d'un composant Pnnn -->
 			{#if pageComponent !== null}
 				<svelte:component this={pageComponent}
-					bind:page={page} bind:pageDone={pageDone} 
+					bind:page={page}
+					bind:pageDone={pageDone} 
+					bind:pseudoList={pseudoList}
 					pageDesc={pageDesc}
 					wsCallComponents={wsCallComponents} pseudo={pseudo}
 				/>
@@ -1026,12 +922,12 @@
 				Sur ce site, ta vie privée est préservée au maximum:
 				aucun cookie tiers, pas de lien avec d'autres sites, pas de publicite, pas de traçage. 
 				Le stockage des informations nécessaires privilégie le stockage local sur ton appareil, 
-				le serveur ne conserve que ton pseudo IG, une clé publique pour valider ton pseudo
-				et les infos strictement liées au mode multijoueurs ou certains challenges
+				le serveur ne conserve que ton pseudo IG, ta clé publique pour valider ton pseudo
+				et les infos strictement liées au mode multijoueurs, certains challenges ou ta sécurité et celle du site.
 			</p>
 			<p style="font-size: 0.7em">
 				Pour assurer ta sécurité, tout en restant simple d'usage, tes transactions sont protégées
-				contre l'usurpation d'identité par des clés furtives et signées par
+				contre l'usurpation d'identité par des clés éphémères et signées par
 				une clé privée élliptique stockée uniquement sur ton appareil.
 				Ces clés sont générées de façon transparente et sans action de ta part, 
 				afin que tu ne puisses pas réutiliser 
@@ -1105,7 +1001,10 @@
 						<input style="width:80%" bind:value={audioVolume} id="newVolumeAudio" type="range" min=0 max=100 />
 					</div>
 					<div>
-						<label><input bind:checked={audioBack} type="checkbox" /> Désactiver la pause automatique</label>
+						<label>
+							<input bind:checked={audioBack} type="checkbox" />
+							le son continue même si la fenêtre est minimisée ou cachée
+						</label>
 					</div>
 				</div>
 			</div>
@@ -1144,6 +1043,37 @@
 		</div>
 	{/if}
 
+	{#if dspWelcome}
+		<div class="popupCadre papier" style="z-index:99999">
+			<div class="close" on:click={()=>dspWelcome=null} on:keypress={null} role="button" tabindex=0>X</div>
+			<div class="popupZone">
+				<div class="popupContent" style="font-size:0.8em">
+					<div><u>Bienvenue {pseudo} sur cette nouvelle version du site</u></div>
+					<p>
+						Par ta sécurité et celle du site, cette nouvelle version met en oeuvre de nouveaux mécanismes avancés
+						coté client et coté serveur.
+						<br/>
+						<u>En cas de souci, ne pas hésiter à mp Kikiadoc sur Discord.</u>
+						<br/>
+						Très important: Toujours utiliser l'URL officielle du site disponible sur Discord.
+						Pour éviter les erreurs ajoute cette URL dans tes favoris ou bookmarks.
+					</p>
+					<p>
+						<u>Rappel de quelques infos pratiques:</u>
+						<br/>
+						Tu peux activer/désactiver la musique d'ambiance avec le bouton 🔊 en haut à droite
+						<br/>
+						En cliquant sur ton pseudo, tu peux modifier le niveau sonore et consulter d'autres paramètres
+						<br/>
+						En cliquant sur l'indicateur multijoueur, tu peux voir les joueurs connectés, les messages de chat...
+						<br/>
+						Amuse-toi bien!
+					</p>
+				</div>
+			</div>
+		</div>
+	{/if}
+	
 	{#if dspAdminMsg}
 		<div class="popupCadre papier" style="z-index:99999">
 			<div class="close" on:click={()=>dspAdminMsg=null} on:keypress={null} role="button" tabindex=0>X</div>

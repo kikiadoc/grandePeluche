@@ -5,14 +5,15 @@ const pseudos = require('../infraback/pseudos.js');
 const collections = require('../infraback/collections.js');
 const httpserver = require('../infraback/httpserver.js');
 const wsserver = require('../infraback/wsserver.js');
-const votation = require('../infraback/votation.js');
 const hautsFaits = require('../infraback/hautsFaits.js');
 const jetons = require('../infraback/jetons.js');
-const voirVideos = require('../infraback/voirVideos.js');
 const discord = require('../infraback/discord.js');
 const adminTest = require('../infraback/adminTest.js');
-const webAuth = require('../infraback/webAuth.js');
 const lodestone = require('../infraback/lodestone.js');
+const voirVideos = require('../infraback/voirVideos.js');
+// const votation = require('../infraback/votation.js');
+// const webAuth = require('../infraback/webAuth.js');
+const innommable = require('../inframain/innommable.js');
 
 async function httpCallback(req, res, method, reqPaths, body, pseudo, pwd) {
 	switch(reqPaths[1]) {
@@ -24,6 +25,7 @@ async function httpCallback(req, res, method, reqPaths, body, pseudo, pwd) {
 		case "voirVideos": voirVideos.httpCallback(req, res, method, reqPaths, body, pseudo, pwd); break;
 		case "discord": discord.httpCallback(req, res, method, reqPaths, body, pseudo, pwd); break;
 		case "adminTest": await adminTest.httpCallback(req, res, method, reqPaths, body, pseudo, pwd); break;
+		case "innommable": innommable.httpCallback(req, res, method, reqPaths, body, pseudo, pwd); break;
 	}
 	gbl.exception( { m: method, rp: reqPaths, body: body, pseudo: pseudo, pwd: pwd  } ,404);
 }
@@ -36,6 +38,7 @@ function wsCallback(jsonMessage) {
 // Verification de l'intégrité des trucs bancales
 /////////////
 async function checkBeforeStart() {
+	// vérification du parse du lodestone si maj de son contennu
 	const ff14Id = await lodestone.getFF14Id("Kikiadoc","Lepetiot","Moogle");
 	if (ff14Id != 12945273)
 		discord.mpKiki("serveur restart, lodetsone issue (idKiki=12945273) found ff14id="+ff14Id);

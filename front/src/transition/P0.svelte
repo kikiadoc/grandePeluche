@@ -210,13 +210,16 @@
 				<input type="button" value="nextMinute" on:click={() => { newDth=Math.floor((Date.now()+60000)/60000)*60000 } } />
 				<br/>
 				Channel:<input bind:value={newChan} type="text" placeholder="id de chan"/>
-				<input type="button" value="ChanTest" on:click={() => { newChan="test"} } />
+				<!--
 				<input type="button" value="ChanAvant" on:click={() => { newChan="avant2024"} } />
 				<input type="button" value="ChanJungle" on:click={() => { newChan="jungleBoogie"} } />
-				<input type="button" value="ChanDiscussion" on:click={() => { newChan="discussion"} } />
-				<input type="button" value="ChanAnnonces" on:click={() => { newChan="annonces"} } />
 				<input type="button" value="deepAI" on:click={() => { newChan="deepAI"} } />
 				<input type="button" value="uchronie" on:click={() => { newChan="uchronie"} } />
+				-->
+				<input type="button" value="test" on:click={() => { newChan="test"} } />
+				<input type="button" value="discussion" on:click={() => { newChan="discussion"} } />
+				<input type="button" value="annonces" on:click={() => { newChan="annonces"} } />
+				<input type="button" value="innommable" on:click={() => { newChan="innommable"} } />
 				Everyone: <input type="checkbox" bind:checked={newAll} on:click={() => { newAll=!newAll; console.log("newAll",newAll)} } />
 				<br/>
 				<textarea bind:value={newTxt} maxlength=1800 rows=15 cols=80 />
