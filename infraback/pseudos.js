@@ -109,9 +109,10 @@ async function definePseudo(body) {
 }
 
 // definition du pwd de session en validant par la clef eliptic
+// metadata sont les metadata du ws ou null
 // si mode eliptic non activé, bascule avec la clef proposée (oldpwd,newPublicKey)
 // si pas de clef proposée, retourne null
-async function asyncSetPwdSession(pseudo,oldPwd,newPwd,hexSignature,newPublicKey) {
+async function asyncSetPwdSession(pseudo,oldPwd,newPwd,hexSignature,newPublicKey,metadata) {
 	const pseudoDesc = pseudos[pseudo];
 	if ( !pseudoDesc ) gbl.exception("pseudo introuvable, contacte Kikiadoc", 403);
 	// si pas de clef proposée, problème de version
@@ -125,10 +126,10 @@ async function asyncSetPwdSession(pseudo,oldPwd,newPwd,hexSignature,newPublicKey
 	// verification du pseudo+newPwd selon le signature
 	if (! await pseudoCheckSignature(pseudo, newPwd, pseudoDesc.jwkPublicKey, hexSignature)) gbl.exception("Signature crypto elliptique invalide, contacte Kikiadoc", 403);
 	// Note le login eventuel (save pseudo AVANT maj du pwd de session)
-	if ( (!pseudoDesc.lastLogin) || (pseudoDesc.lastLogin < (Date.now()-3600000) ) ) {
-		pseudoDesc.lastLogin = Date.now();
-		savePseudo(pseudoDesc);
-	}
+	pseudoDesc.lastLogin = Date.now();
+	pseudoDesc.pwd = "transient"
+	pseudoDesc.ip = metadata && metadata.ip
+	savePseudo(pseudoDesc);
 	// commit du pwd de session
 	pseudoDesc.pwd = newPwd
 	return pseudoDesc

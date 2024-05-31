@@ -106,22 +106,21 @@ exports.broadcastSimpleOp = (op, o) => {
 exports.start = (wsCallback, port) => {
   const wss = new WebSocket.Server({ port: port });
 
-  wss.on('connection', (ws) => {
-    const id = gbl.uuidv4();
-    let metadata = { id };
+  wss.on('connection', (ws,req) => {
+    let metadata = { id: gbl.uuidv4() , ip: req.headers['x-forwarded-for'].split(',')[0].trim() };
 
-    console.log('Connexion:',id);
+    console.log('Connexion:',metadata);
 
     clients.set(ws, metadata);
 
     ws.on('ping', (m) => {
 	    ws.estVivant=true;
 	    ws.pong();
-	    // console.log('ping recu:', id, m);
+	    // console.log('ping recu:', metadata, m);
     });
     ws.on('pong', (m) => {
 	    ws.estVivant=true;
-	    // console.log('pong recu :', id, m);
+	    // console.log('pong recu :', metadata, m);
     });
     ws.on('message', async (m) => {
 			try {
@@ -130,7 +129,7 @@ exports.start = (wsCallback, port) => {
 				console.log("WSmessage:",metadata.pseudo,jMsg);
 				switch (jMsg.op) {
 					case "iam":
-						let pseudoDesc = await pseudos.asyncSetPwdSession(jMsg.pseudo,jMsg.pwd,jMsg.newPwd,jMsg.signature,jMsg.publicKey)
+						let pseudoDesc = await pseudos.asyncSetPwdSession(jMsg.pseudo,jMsg.pwd,jMsg.newPwd,jMsg.signature,jMsg.publicKey,metadata)
 						if (pseudoDesc) {
 							metadata.pseudo = jMsg.pseudo;
 							ws.send(JSON.stringify( { op: "elipticKeyOk", pseudoDesc: pseudoDesc } ));
@@ -165,7 +164,7 @@ exports.start = (wsCallback, port) => {
 
     ws.on("close", (e) => {
 			try {
- 				console.log("WS Close:",id, "reason:", e);
+ 				console.log("WS Close:",metadata, "reason:", e);
 				clients.delete(ws);
 				broadcastPseudoList();
 				exports.broadcastNotification(metadata.pseudo+ " s'est déconnecté");
