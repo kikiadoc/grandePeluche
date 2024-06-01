@@ -7,16 +7,24 @@ const dataStorePath="/home/ec2-user/checksec/datastore/"
 
 // PORT du serveur d'analyse temps réel
 const PORT=9999
-const RET_TEXT="<div style='background-color:red'>Mauvaise URL (HP)<br/>Utilise exactement l'URL indiqu&eacute;e sur Discord"
+const RET_TEXT=		"<div style='background-color:red'>Mauvaise URL (pot de miel)<br/>Utilise exactement l'URL indiqu&eacute;e sur Discord</div>"
+const ROBOT_TEXT=	"User-agent: *\nDisallow: /\n"+
+									"User-agent: Googlebot\nDisallow: /\n"+
+									"User-agent: GoogleOther\nDisallow: /\n"+
+									"User-agent: Google-Extended\nDisallow: /\n"
 //
 // liste des urls toléréés, ne pas oublier qu'un "/" est ajouté par le reverse proxy
 const whiteListUrl = [
-	{ m: "GET", u:"//", s: 200},
+	{ m: "GET", u:"//", s: 200, r: RET_TEXT},
 	{ m: "GET", u:"//favicon.ico", s: 404},
-	{ m: "GET", u:"//robots.txt", s: 404},
+	{ m: "GET", u:"//images/favicon.ico", s: 404},
+	{ m: "GET", u:"//robots.txt", s: 200, r: ROBOT_TEXT},
 	{ m: "GET", u:"//sitemap.xml", s: 404},
+	{ m: "GET", u:"//ads.txt", s: 404},
+	{ m: "GET", u:"//app-ads.txt", s: 404},
 	{ m: "GET", u:"//apple-touch-icon-precomposed.png", s: 404},
 	{ m: "GET", u:"//apple-touch-icon.png", s: 404},
+	{ m: "GET", u:"//.git/config", s: 404},
 	{ m: "OPTIONS", u:"//", s: 404},
 	{ m: "HEAD", u:"//", s: 404}
 ]
@@ -198,11 +206,10 @@ function dumpReq(req,bodyData) {
 	}
 }
 
-// calcul du status de retour selon l'url et la méthode et si présent en liste tolérée
-function getStatusReq(req) {
-	let ret = 418
-	whiteListUrl.forEach( (e) => { if ( (req.url==e.u) && (req.method==e.m)  ) { console.log("** HP toléré:",req.method, req.url); ret= e.s } } ); 
-	return ret
+// retourne la description d'url tolérée  selon la requete
+// retourne undefined si introuvable
+function getDescReq(req) {
+	return whiteListUrl.find( (e) => { return (req.url==e.u) && (req.method==e.m)  } ); 
 }
 
 function listenerFct(req, res) {
@@ -211,21 +218,16 @@ function listenerFct(req, res) {
      req.on("data", (chunk) => {
 			try {
 				// limite la taille recue
-				if (bodyData.length < 200000)
-       		bodyData = bodyData.concat(chunk);
+				if (bodyData.length < 20000) bodyData = bodyData.concat(chunk);
 			}
-      catch(e) {
-				console.log(e);
-      }
+      catch(e) { console.log(e); }
 		});
 
     req.on("error", async () => {
       try {
 	 			console.log("HONEYPOT --> Error event ",req.method,req.url);
        }
-      catch(e) {
-     		console.log(e);
-      }
+      catch(e) { console.log(e); }
 		});
 
     req.on("end", async () => {
@@ -233,26 +235,25 @@ function listenerFct(req, res) {
 	 			console.log("HONEYPOT -->Req",req.method,req.url);
 				// dump de la requete
 	 			dumpReq(req,bodyData); 
-				// retour avec statushttp
-				let ret=getStatusReq(req);
-				// ban immediat si besoin
-				if ( ret!=200 && ret!=404 ) {
-					let ipFor=req.headers['x-forwarded-for'];
-					if (ipFor)
-						addIpBan("banAtEndRequest",req.method+" "+req.url,ipFor)
+				// analyse url
+				const desc=getDescReq(req);
+				// si url tolérée
+				if ( desc ) {
+					res.statusCode=desc.s
+					res.end(desc.r || RET_TEXT );
 				}
-				// 
-				res.statusCode=ret
-				res.end(RET_TEXT);
+				else {
+					// ban direct
+					const ipFor=req.headers['x-forwarded-for'];
+					if (ipFor) addIpBan("banAtEndRequest",req.method+" "+req.url,ipFor)
+					res.statusCode=418
+					res.end("I'm a teapot");
+				}
        }
-      catch(e) {
-     		console.log(e);
-      }
+      catch(e) { console.log(e); }
     });
   }
-  catch(e) {
-    console.log(e);
-  }
+  catch(e) { console.log(e); }
 }
 
 startServer = () => {

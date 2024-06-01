@@ -242,11 +242,13 @@
 						<table>
 							<tr>
 								<td><input type="button" value="Tri" on:click={()=>{dspPseudo=dspPseudo.sort((a,b)=>sortCmp(a[0],b[0]))}} /></td>
+								<td><input type="button" value="Tri" on:click={()=>{dspPseudo=dspPseudo.sort((a,b)=>sortCmp(a[1].ip || "z",b[1].ip || "z"))}} /></td>
 								<td><input type="button" value="Tri" on:click={()=>{dspPseudo=dspPseudo.sort((a,b)=>sortCmp(b[1].lastLogin,a[1].lastLogin))}} /></td>
 							</tr>
 						{#each dspPseudo as p}
 							<tr>
 								<td>{p[0]}</td>
+								<td>{p[1].ip}</td>
 								<td>{jjmmhhmmss(p[1].lastLogin)}</td>
 								<td>{p[1].prenom} {p[1].nom} @{p[1].monde}</td>
 								<td style="color:red">{(p[1].fullName)? "notNormalized":""}</td>

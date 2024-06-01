@@ -6,8 +6,9 @@ const WebSocket = require('ws');
 
 const clients = new Map();
 
+// message constant de pong avec la vesion client requise
 let clientPong = {op: "pong", clientVersion: simpleObjects.load("clientVersion").version }
-
+// admin force la version client depuis le filesystem (utilisé par les scripts de commit client)
 exports.forceClientVersion = () => {
 	let v = simpleObjects.load("clientVersion").version
 	clientPong = {op: "pong", clientVersion: v }

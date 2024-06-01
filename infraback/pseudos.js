@@ -125,7 +125,7 @@ async function asyncSetPwdSession(pseudo,oldPwd,newPwd,hexSignature,newPublicKey
 	}
 	// verification du pseudo+newPwd selon le signature
 	if (! await pseudoCheckSignature(pseudo, newPwd, pseudoDesc.jwkPublicKey, hexSignature)) gbl.exception("Signature crypto elliptique invalide, contacte Kikiadoc", 403);
-	// Note le login eventuel (save pseudo AVANT maj du pwd de session)
+	// Note le login et ip eventuel (save pseudo AVANT maj du pwd de session)
 	pseudoDesc.lastLogin = Date.now();
 	pseudoDesc.pwd = "transient"
 	pseudoDesc.ip = metadata && metadata.ip

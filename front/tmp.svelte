@@ -18,7 +18,7 @@
 	// ONLYCOMPILED	import P201 from './P_201.svelte';
 	*/
 
-	let version='PROD 24.05.24.18.10';  // SERA MODIFIE LORS DU COMMIT EN STAGING OU PROD ne pas changer
+	let version='PROD 24.06.01.17.46';  // SERA MODIFIE LORS DU COMMIT EN STAGING OU PROD ne pas changer
 
 	// Gestion des reload, refresh etc..
 	onMount(() => {
