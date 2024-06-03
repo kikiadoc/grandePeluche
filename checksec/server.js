@@ -22,9 +22,9 @@ const whiteListUrl = [
 	{ m: "GET", u:"//sitemap.xml", s: 404},
 	{ m: "GET", u:"//ads.txt", s: 404},
 	{ m: "GET", u:"//app-ads.txt", s: 404},
+	{ m: "GET", u:"//sellers.json", s: 404},
 	{ m: "GET", u:"//apple-touch-icon-precomposed.png", s: 404},
 	{ m: "GET", u:"//apple-touch-icon.png", s: 404},
-	{ m: "GET", u:"//.git/config", s: 404},
 	{ m: "OPTIONS", u:"//", s: 404},
 	{ m: "HEAD", u:"//", s: 404}
 ]

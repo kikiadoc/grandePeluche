@@ -171,12 +171,13 @@ export function sortCmp(a,b) {
 // AFFICHAGE
 ///////////////////////////////////////////////////////////////////////////////////////
 export function scrollTop(e) {
-	console.log('scrollTop')
 	setTimeout( () => {
+		const elt = document.getElementById(e || "contenu")
+		if (!elt) return console.log("scrollTop elt not found ")
 		if (e)
-			document.getElementById(e).scrollIntoView({behavior: "smooth"});
+			elt.scrollIntoView({behavior: "smooth"})
 		else
-			document.getElementById("contenu").scrollTo({top: 0, left: 0, behavior: "smooth"});
+			elt.scrollTo({top: 0, left: 0, behavior: "smooth"});
 	}, 200);
 }
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -601,8 +602,8 @@ function isAudioPlaying(e) {
 }
 
 // si pas de fond sonore (onclick sur document, event unique)
-export function audioTry(dth) {
-	console.log("AudioTry ambiance=",audioAmbiance,dth);
+export function audioTry(domElt) {
+	console.log("AudioTry ambiance=",audioAmbiance);
 	flagMediaPlayOk = true;
 	if (!audioAmbiance)
 		addNotification("Musique d'ambiance désactivée, clic sur 🔇 en haut à droite pour la réactiver","orange",5)
@@ -799,7 +800,7 @@ export async function cryptoSign(texte) {
 			 ecdsaParams, jwkPrivateKey, new TextEncoder().encode(texte)
 		)
 		let ret = uint8ArrayToHex(signature);
-		console.log("signed",signature,"ret",ret)
+		// console.log("signed",signature,"ret",ret)
 		return ret;
 	}
 	catch (e) {

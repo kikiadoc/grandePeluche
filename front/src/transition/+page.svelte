@@ -22,18 +22,19 @@
 
 	// Gestion des reload, refresh etc..
 	onMount(() => {
-		const splash = document.getElementById("splash");
-		if (splash)	setTimeout(() => {  splash.remove(); } , 1500);
-		startWakeLock();
-		init();
+		console.log('** Mount **')
+		const splash = document.getElementById("splash")
+		if (splash)	setTimeout(() => {  splash.remove(); } , 1500)
+		startWakeLock()
+		init()
 	});
 	onDestroy(() => {
-		disconnectFromServer();
-		clearTimeout(timerIdList); 
+		disconnectFromServer()
+		clearTimeout(timerIdList)
 	});
 
 	function init() {
-		if (pseudo!="") 
+		if (pseudo)
 			connectToServer(wsCbStatus, wsCbMessage,version);
 		else
 			page = 0; // force login
@@ -42,7 +43,8 @@
 		playSound();
 		loadJetons();
 		initList();
-		checkPageValid();
+		// si la page n'est pas dans la desription, reset la page a 0
+		if (page!=0 && !pageList.find( (e) => { return (e.n == page) } ) ) page=0;
 	}
 
 	//
@@ -85,13 +87,6 @@
 		}
 	];
 
-	function checkPageValid() {
-		let ok=false;
-		pageList.forEach( (e) => { if (e.n == page) ok=true;}) ;
-		console.log("Page stockee gérée?:",page, ok);
-		if (!ok && page!=0) page=0;
-	}
-	
 	/////////////////////////////////////////////////////////////////////
 	// Gestion des parametres audio
 	/////////////////////////////////////////////////////////////////////
@@ -125,7 +120,7 @@
 				pageComponent = (wPageDesc.component)? wPageDesc.component : null;
 			}
 			else {
-				console.log("wPageDesc not found")
+				console.log("wPageDesc not found: ", page)
 				playSound(null);
 				pageComponent = null;
 			}
@@ -157,7 +152,6 @@
 		}
 	}
 
-	let dspAdminMsg = null;
 	function wsCbMessage(m) {
 		console.log("wsCbMessage",m);
 		let done=false;
@@ -167,27 +161,7 @@
 				done = true;
 				break;
 			case "notif":
-				if (m.fromPseudo) {
-					flagChat=true;
-					addNotification(m.fromPseudo+": "+m.texte,"orange");
-					playDing(); 
-				}
-				else
-					addNotification(m.texte);
-				if (m.admin) { 
-					dspAdminMsg = m.texte;
-					playDing("call-to-attention");
-				}
-				if (m.toPseudo == pseudo) {
-					if (m.fromPseudo)
-						newInfoPopup("Message personnel de "+m.fromPseudo,m.toTexte,"");
-					else
-						newInfoPopup("Message personnel de la Grande Peluche",m.toTexte,"");
-					playDing("call-to-attention");
-				}	
-				if (m.mp3) playDing(m.mp3);
-				chatMsgList.push(m);
-				chatMsgList = chatMsgList; // forece refresh
+				chatNotif(m)
 				done=true;
 				break;
 			case "collection":
@@ -203,16 +177,11 @@
 
 
 	/////////////////////////////////////////////////////////////////////
-	// Gestion du pseudo
+	// Gestion du pseudo et creation compte
 	/////////////////////////////////////////////////////////////////////
-	// Popup pseudo
-	let dspPseudo=false;
+	let dspPseudo=false; // affichage Popup pseudo
 	function toggleDspPseudo() {
-		dspPseudo = ! dspPseudo;
-	}
-	// fonctions diverses liés au pseudo
-	function keyPseudo(e) {
-		if (e.keyCode==13) registerPseudo();
+		dspPseudo = !dspPseudo
 	}
 	async function registerPseudo()	{
 		let enregistrer = document.getElementById("enregistrerPseudo");
@@ -221,7 +190,7 @@
 			return;
 		}
 		enregistrer.style.color="red";
-		try {	await registerPseudoTech();	} catch(e) {} ;
+		try {	await registerPseudoTech();	} catch(e) {console.log(e)} ;
 		enregistrer.style.color="black";
 	}
 
@@ -299,8 +268,6 @@
 	let jetons = {};
 	let lastSoldeJetons = loadIt('lastSoldeJetons',0);
 	let flagJetonClass="";
-	// comme c'est la premiere fonction serverur appelée en http
-	// positionne aussi la validité d'utilisateur
 	async function loadJetons() {
 		let json = await apiCall("/collections/jetons");
 		if (json.status == 200)
@@ -314,9 +281,10 @@
 	let dspJetons=false;
 	function toggleDspJetons() {
 		dspJetons = ! dspJetons;
-		flagJetonClass="";
+		flagJetonClass=""; // efface l'indicateur clignotant
 		storeIt('lastSoldeJetons',lastSoldeJetons);
 	}
+	// don d'un jeton
 	async function donneJeton(p) {
 		if (confirm("Donner un jeton de Camelot à " + p + "?")) {
 			let retJson = await apiCall("/jetons/"+p,"PUT");
@@ -325,18 +293,48 @@
 	}
 
 	/////////////////////////////////////////////////////////////////////
-	// Popup mutijoueurs
+	// Popup mutijoueurs et gestion du chat
 	/////////////////////////////////////////////////////////////////////
 	let dspMultiPopup=false;
 	let messageText = null; // via bind
-	let messageScrollArea = null; // via bind
-	let chatMsgList=[];
-	let flagChat=false;
+	let messageScrollArea = null; // via bind sur le domElement
+	let dspAdminMsg = null; // affichage fenetre d'admin (contient le texte admin)
+	let chatMsgList=[]; // liste des messages recus
+	let flagChat=false; // indique le blink du flag de chat
+	
+	// gestion changement de la liste de chat
 	$: if(chatMsgList && messageScrollArea) { console.log("autoscoll updated values") ; scrollToBottom(messageScrollArea) }
   async function scrollToBottom(node) {
 		await tick();
 		node.scroll({ top: node.scrollHeight, behavior: 'smooth' });
 	};
+	
+	// reception d'un message de notification (depuis le WS)
+	function chatNotif(m) {
+		if (m.fromPseudo) {
+			flagChat=true;
+			addNotification(m.fromPseudo+": "+m.texte,"orange");
+			playDing(); 
+		}
+		else
+			addNotification(m.texte);
+		if (m.admin) { 
+			dspAdminMsg = m.texte;
+			playDing("call-to-attention");
+		}
+		if (m.toPseudo == pseudo) {
+			if (m.fromPseudo)
+				newInfoPopup("Message personnel de "+m.fromPseudo,m.toTexte,"");
+			else
+				newInfoPopup("Message personnel de la Grande Peluche",m.toTexte,"");
+			playDing("call-to-attention");
+		}	
+		if (m.mp3) playDing(m.mp3);
+		chatMsgList.push(m);
+		chatMsgList = chatMsgList; // forece refresh
+	}
+	
+	// envoi d'un message
 	function sendMsg() {
 		if (messageText) {
 			apiCall("/chatMsg","POST", {texte: messageText} );
@@ -344,15 +342,12 @@
 			messageText=null;
 		}
 	}
+	
+	// envoi d'un message d'admin
 	function sendAdmin() {
 		if (messageText) apiCall("/adminMsg","POST", {texte: messageText, admin:true} ) ;
 		messageText=null;
 	}
-
-	/////////////////////////////////////////////////////////////////////
-	// Gestion de l'assistance
-	/////////////////////////////////////////////////////////////////////
-	let dspAssistance = false;
 
 	/////////////////////////////////////////////////////////////////////
 	// gestion de la liste des challenges
@@ -360,6 +355,12 @@
 	const timerStart = 24* 3600000; // 24H
 	const timerEnd = 24* 3600000; // 24H
 
+	// initialise la liste et les timers
+	function initList() {
+		setupTimerList();
+	}
+
+	// clic dans la liste
 	function listClick(infoPage) {
 		const dthNow = Date.now();
 		if (infoPage.start==0 || infoPage.end==0) {
@@ -409,16 +410,11 @@
 		// Pas de changemenet de page, on active quand meme l'audio de la page voulue
 		playSound(infoPage.music || "Amelie");
 	}
-	
-	let dthNow = Date.now();
-	function initList() {
-		setupTimerList();
-	}
 
-	//setup timer
+	//setup timer de la liste
 	let timerIdList = null;
 	function setupTimerList() {
-		dthNow = Date.now();
+		const dthNow = Date.now();
 		let timer = 60000; // 1 minute
 		for (const infoPage of pageList) {
 			// clcul du libele de l'item de la liste
@@ -451,29 +447,25 @@
 			}
 			// beta active ?
 			infoPage.betaActive = infoPage.betaTest && (dthNow <= infoPage.start)
-
 		}
 		timerIdList = setTimeout(setupTimerList,timer);
 		// refresh list
 		pageList = pageList;
 	}
-	
+
+	/////////////////////////////////////////////////////////////////////
+	// Gestion de l'assistance
+	/////////////////////////////////////////////////////////////////////
+	let dspAssistance = false;
+
 </script>
 
 <style lang="scss">
 	body {
-		position: fixed;
-		color: white;
-		background-color: transparent;
-		font-family: "Times New Roman", Times, serif;
-		font-size: 1.5em; 
-		top:0;
-		left:0;
-		width:100%;
-		height:100%;
-		right:0;
-		bottom:0;
-		margin:0;
+		position: fixed; color: white; background-color: transparent;
+		font-family: "Times New Roman", Times, serif;	font-size: 1.5em; 
+		top:0; left:0; right:0; bottom:0; margin:0;
+		width:100%;	height:100%;
 		text-shadow: 0px 0.10em 0.1em black, 0px -0.1em 0.1em black, 0px 0.20em 0.2em black, 0px -0.2em 0.2em black;
 	}
 	.contenu { position: fixed; top: 3em; left: 0; bottom: 0.1em; 
@@ -801,10 +793,10 @@
 					<div>Pour participer, tu dois m'indiquer EXACTEMENT tes prénom, nom et monde InGame:</div>
 					<div>
 						<label>
-							<input type="text" placeholder="prénomIG" id="pseudoRequest" maxlength=15 on:keypress={keyPseudo}>
+							<input type="text" placeholder="prénomIG" id="pseudoRequest" maxlength=15>
 						</label>
 						<label>
-							<input type="text" placeholder="nomIG" id="nomRequest" maxlength=15 on:keypress={keyPseudo}>
+							<input type="text" placeholder="nomIG" id="nomRequest" maxlength=15>
 						</label>
 						<select id="mondeRequest">
 							<option>Cerberus</option>
@@ -839,7 +831,6 @@
 						Consulter le grimoire des gains
 					</a>
 				</div>
-	
 				{#each pageList as page, i}
 					{#if page.sep}
 						<div class="">
@@ -899,7 +890,6 @@
 				</div>
 			{/if}
 		{/if}
-	
 		{#if page != 0}
 			<!-- inclusion dynamique d'un composant Pnnn -->
 			{#if pageComponent !== null}
@@ -1087,7 +1077,7 @@
 			</div>
 		</div>
 	{/if}
-	
+
 </body>
 	
 <!-- page +page.svelte -->

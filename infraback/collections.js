@@ -4,28 +4,43 @@ const pseudos = require('../infraback/pseudos.js');
 const fs = require('fs');
 
 
+////////////////////////////////////////////////
+// initialise les collectsions depuis le FS
+////////////////////////////////////////////////
 let collectionsMap = new Map();
-
 function initCollections() {
 	console.log("--- init collections ---");
 	fs.readdirSync(gbl.staticFsPath).forEach(file => {
   		const radical = file.split('.');
   		if (radical[1]=='collection') {
-      			const rawCol = fs.readFileSync(gbl.staticFsPath+file);
-      			const jsonCol = JSON.parse(rawCol);
-			if (jsonCol.name == radical[0]) {
-      				collectionsMap.set(jsonCol.name,jsonCol);
-      				console.log("Collection loaded: ",file);
-			}
-			else {
-				console.error("Collection NOT loaded (integrity)",file);
-			}
-  		}
+   			const rawCol = fs.readFileSync(gbl.staticFsPath+file);
+   			const jsonCol = JSON.parse(rawCol);
+				if (jsonCol.name == radical[0]) {
+ 					collectionsMap.set(jsonCol.name,jsonCol);
+ 					console.log("Collection loaded: ",file);
+				}
+				else {
+					console.error("Collection NOT loaded (integrity)",file);
+				}
+  		}	
 	});
 	console.log("------------------------");
 }
 
 
+////////////////////////////////////////////////
+// charge un fichier JSON
+////////////////////////////////////////////////
+function loadJsonFile(file) {
+	try {
+ 		const rawFile = fs.readFileSync(file);
+ 		return JSON.parse(rawFile);
+	}
+	catch (e) {
+		console.log('*** parsing error:',file,e);
+		return {}
+	}
+}
 
 ////////////////////////////////////////////////
 // préparation d'un mode asynchrone eventuel
@@ -70,6 +85,7 @@ function init(newCol) {
 exports.get = get
 exports.save = save
 exports.init = init
+exports.loadJsonFile = loadJsonFile
 
 exports.stringify = (col) => {
 	console.log("** A FAIRE, cache de collections");
