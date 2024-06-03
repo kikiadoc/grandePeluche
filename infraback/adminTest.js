@@ -37,7 +37,7 @@ function admDiscordReport() {
 									"\nRègles FW:<"+PUB_FWRULES+">"+
 									"\n\nFin du rapport quotidien"+
 									"\n\nRAW:\n"+JSON.stringify(reportJson)+"\n"+JSON.stringify(yumUpdateJson)
-	discord.postMessage( gbl.isProd()? "annonces" : "test", message,true)
+	discord.postMessage( gbl.isProd()? "test" : "test", message,true)
 }
 
 exports.httpCallback = async (req, res, method, reqPaths, body, pseudo, pwd) => {
