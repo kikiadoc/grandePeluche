@@ -10,4 +10,6 @@ sudo systemctl daemon-reload
 #
 sudo systemctl restart httpd.service
 sudo systemctl restart kikibackend.service
- 
+#
+echo apache listening:
+apachectl -t -D DUMP_VHOSTS

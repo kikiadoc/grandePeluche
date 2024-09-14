@@ -68,6 +68,19 @@ exports.uuidv4 = () => {
   });
 }
 
+// compacte un objet pour optimisation mémoire
+exports.deepCompact = (val) => {
+  const data = Array.isArray(val) ? val.filter(Boolean) : val;
+  return Object.entries(data).reduce(
+    (acc, [key, value]) => {
+      if (Boolean(value))
+        acc[key] = typeof value === 'object' ? exports.deepCompact(value) : value;
+      return acc;
+    },
+    Array.isArray(val) ? [] : {}
+  );
+};
+
 exports.exception = (message,code,startDth) => {
 	// console.log("----------------------------------------");
 	// console.log(message,code,startDth);

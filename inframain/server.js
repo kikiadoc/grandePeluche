@@ -13,7 +13,14 @@ const lodestone = require('../infraback/lodestone.js');
 const voirVideos = require('../infraback/voirVideos.js');
 // const votation = require('../infraback/votation.js');
 // const webAuth = require('../infraback/webAuth.js');
+const clientConfig = require('../inframain/clientConfig.js');
 const innommable = require('../inframain/innommable.js');
+const torches = require('../inframain/torches.js');
+const asciens = require('../inframain/asciens.js');
+const pnjs = require('../inframain/pnjs.js');
+const doctrineDuMal = require('../inframain/doctrineDuMal.js');
+const uploadFile = require('../inframain/uploadFile.js');
+const usinesGaz = require('../inframain/usinesGaz.js');
 
 async function httpCallback(req, res, method, reqPaths, body, pseudo, pwd) {
 	switch(reqPaths[1]) {
@@ -23,9 +30,17 @@ async function httpCallback(req, res, method, reqPaths, body, pseudo, pwd) {
 		case "jetons": jetons.httpCallback(req, res, method, reqPaths, body, pseudo, pwd); break;
 		case "hautsFaits": hautsFaits.httpCallback(req, res, method, reqPaths, body, pseudo, pwd); break;
 		case "voirVideos": voirVideos.httpCallback(req, res, method, reqPaths, body, pseudo, pwd); break;
-		case "discord": discord.httpCallback(req, res, method, reqPaths, body, pseudo, pwd); break;
+		case "discord": await discord.httpCallback(req, res, method, reqPaths, body, pseudo, pwd); break;
 		case "adminTest": await adminTest.httpCallback(req, res, method, reqPaths, body, pseudo, pwd); break;
 		case "innommable": innommable.httpCallback(req, res, method, reqPaths, body, pseudo, pwd); break;
+		case "clientConfig": clientConfig.httpCallback(req, res, method, reqPaths, body, pseudo, pwd); break;
+		case "uploadFile": await uploadFile.httpCallback(req, res, method, reqPaths, body, pseudo, pwd); break;
+		// eleents liés aux activités présentes
+		case "torches": torches.httpCallback(req, res, method, reqPaths, body, pseudo, pwd); break;
+		case "asciens": asciens.httpCallback(req, res, method, reqPaths, body, pseudo, pwd); break;
+		case "pnjs": await pnjs.httpCallback(req, res, method, reqPaths, body, pseudo, pwd); break;
+		case "doctrineDuMal": await doctrineDuMal.httpCallback(req, res, method, reqPaths, body, pseudo, pwd); break;
+		case "usinesGaz": await usinesGaz.httpCallback(req, res, method, reqPaths, body, pseudo, pwd); break;
 	}
 	gbl.exception( { m: method, rp: reqPaths, body: body, pseudo: pseudo, pwd: pwd  } ,404);
 }
@@ -47,10 +62,12 @@ async function checkBeforeStart() {
 /////////////
 // Start service
 /////////////
+const HTTPPORT = gbl.isProd() ? 7070 : 7072
+const WSPORT = gbl.isProd() ? 7071 : 7073
 checkBeforeStart()
-console.log("HTTPPORT=",process.env.HTTPPORT);
-console.log("WSPORT=",process.env.WSPORT);
-httpserver.start(httpCallback, parseInt(process.env.HTTPPORT,10) || 7072);
-wsserver.start(wsCallback, parseInt(process.env.WSPORT,10) || 7073);
-discord.start(null);
+console.log("HTTPPORT=",HTTPPORT)
+console.log("WSPORT=",WSPORT)
+discord.start(null)
+wsserver.start(wsCallback, WSPORT)
+httpserver.start(httpCallback, HTTPPORT)
 

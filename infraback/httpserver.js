@@ -1,5 +1,6 @@
 
 const http = require('http');
+const process = require('process');
 
 const gbl = require('../infraback/gbl.js');
 const pseudos = require('../infraback/pseudos.js');
@@ -26,13 +27,14 @@ async function standardHttpRequest(req,res,met,reqPaths,bodyData,pseudo,pwd) {
 
 function listenerFct(req, res) {
     try {
+			const reqDth= process.hrtime.bigint() // Date.now();
       let bodyData = "";
       req.on("data", (chunk) => {
         bodyData = bodyData.concat(chunk);
       });
 
       req.on("end", async () => {
-				const startDth= Date.now();
+				const startDth= process.hrtime.bigint() // Date.now();
         try {
       		const myUrl = new URL("http://localhost" + req.url);
       		const reqPaths = myUrl.pathname.split('/');
@@ -48,15 +50,19 @@ function listenerFct(req, res) {
 	  			gbl.exception("Bad path",404);
         }
         catch(e) {
+					const endDth= process.hrtime.bigint() // Date.now();
+					const tr = { load: Number(startDth-reqDth)/1000000, run: Number(endDth-startDth)/1000000, dth: Date.now()  }
           if (e.code && e.msg) {
+						e.tr=tr
 						res.statusCode=e.code;
            	res.end(JSON.stringify(e));
-	  				console.log("<--Ret",req.method,req.url,e.code, "ms:", Date.now()-startDth);
+						jsonTime = Number(process.hrtime.bigint()-endDth)/1000000
+	  				console.log("<--Ret",req.method,req.url,e.code, "ms: (load/run/json)", tr.load, tr.run, jsonTime);
           }
           else {
 						res.statusCode=500;
             res.end('{ "code": "500", "msg" : "voir log serveur" }');
-	  				console.log("Ret=",req.method,req.url,e,"ms:", Date.now()-startDth);
+	  				console.log("Ret=",req.method,req.url,e,"ms:", tr);
           }
         }
       });

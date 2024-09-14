@@ -88,11 +88,11 @@ async function pCloudApiCall(op,prm,method,body) {
 	return json;
 }
 
-// Dépose un fichier sur le public folder utilisé
-async function pCloudPutPublicFile(filename) {
-		let fnUri = encodeURIComponent(path.basename(filename));
-		let contenu = await fs.promises.readFile(filename,null);
-		console.log("pCloud upload file:",filename);
+// Dépose un fichier sur le public folder utilisé (utilise targetFileName si indiqué)
+async function pCloudPutPublicFile(localFilename,targetFilename) {
+		let fnUri = encodeURIComponent(targetFilename || path.basename(localFilename));
+		let contenu = await fs.promises.readFile(localFilename,null);
+		console.log("pCloud upload file:",localFilename);
 		return await pCloudApiCall("uploadfile","&filename="+fnUri+"&folderid="+pCloudPublicFolderId+"&nopartial=1",'PUT',contenu);
 }
 

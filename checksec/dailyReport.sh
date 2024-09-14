@@ -15,7 +15,10 @@ report=${dir}/report.txt
 reportJson=${dir}/report.json
 
 ##########
+##########
 echo "Debut analyse des urls:" $lstFileAcc $lstFileSsl `date`
+# sudo chmod 750 /var/log/httpd
+# sudo chown root:ec2-user /var/log/httpd
 # uniquement les fichiers de moins de 3 jours
 lstFileAcc=`find /var/log/httpd/access_log* -mmin -4320`
 lstFileSsl=`find /var/log/httpd/ssl_access_log* -mmin -4320`
@@ -24,6 +27,7 @@ sort $lstFileAcc $lstFileSsl > $accessAll
 # Recupère la liste des access bizarres en supprimant les scanner whiteHat
 grep -h -v 'GET / \|OPTIONS / \|GET /api/\|GET /enjoy\|GET /ws/\|OPTIONS /api/\|PUT /api/\|POST /api/\|GET /lodestone/character/\|GET /grimoire/deepAi-\|91.164.33.248\|13.38.154.200\|::1 - -\| "-" 408 -\|scan.leakix.org.\|scanner.ducks.party\|censys-scanner.com.\|.letsencrypt.org.\|.internet-census.org.' < $accessAll  > $accessFiltered
 # recupère uniquement les adresses IP
+echo xxx
 awk '{print $1}' < $accessFiltered | sort -u > $listIp
 # compte les lignes par IP
 echo "** Comptage: $nbIp IP a analyser"

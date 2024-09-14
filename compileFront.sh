@@ -64,6 +64,14 @@ sed "s/WEBPATH/$webpath/" < svelte.config.js.template > svelte.config.js
 echo "update APITYPE in storage.js to $apitype"
 sed "s/APITYPE='test'/APITYPE='$apitype'/" < src/$subdir/storage.js  > src/routes/storage.js
 
+echo "update subdir z files"
+for i in src/$subdir/z/*; do
+	f=`basename $i`
+	echo "fichier:" $f
+	sed "s/\.\/storage.js/\.\.\/storage.js/g" < src/$subdir/z/$f > tmp.svelte
+	sed "s/\.\/z\//\.\.\/z\//g" < tmp.svelte > src/routes/z/$f
+done
+
 npm run build
 
 sudo echo rm -R $dir

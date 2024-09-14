@@ -6,10 +6,16 @@ port=7070
 echo "Début de la mise à jour système"
 
 # update system
-echo "Mise a jour systeme du" `date` > $logs
+echo "*** Mise a jour systeme et patch securite du " `date` > $logs
 sudo yum update -y >> $logs
 rcYumUpdate=$?
-echo "fin de mise a jour systeme du" `date` >> $logs
+echo "*** fin de mise a jour:" `date` >> $logs
+
+# verif synchro horloges
+echo "*** Verif synchro horloge" >> $logs
+chronyc tracking >> $logs 
+# chronyc sources >> $logs
+echo "*** Fin Verif synchro horloge" >> $logs
 
 # affichage du rapport dans les logs systeme
 cat $logs

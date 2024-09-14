@@ -1,18 +1,26 @@
 
 const gbl = require('../infraback/gbl.js');
 const pseudos = require('../infraback/pseudos.js');
-const simpleObjects = require('../infraback/simpleObjects.js');
+const collections = require('../infraback/collections.js');
 const WebSocket = require('ws');
 
 const clients = new Map();
 
 // message constant de pong avec la vesion client requise
-let clientPong = {op: "pong", clientVersion: simpleObjects.load("clientVersion").version }
+let clientPong = {op: "pong", clientVersion: collections.loadSimpleObject("clientVersion").version }
 // admin force la version client depuis le filesystem (utilisé par les scripts de commit client)
 exports.forceClientVersion = () => {
-	let v = simpleObjects.load("clientVersion").version
+	let v = collections.loadSimpleObject("clientVersion").version
 	clientPong = {op: "pong", clientVersion: v }
 	return v;
+}
+
+function targetClient(pseudo,o) {
+	let jsonMsg = JSON.stringify(o);
+	clients.forEach((meta,ws) => {
+		if (meta.pseudo == pseudo) 
+			ws.send(jsonMsg);
+	});
 }
 
 function broadcastClient(o) {
@@ -45,7 +53,15 @@ function broadcastPseudoList () {
   clients.forEach( (meta,ws) => {
 	 	pseudoList.push(meta.pseudo);
 	});
-	broadcastClient({op : "pseudoList", pseudoList : pseudoList });
+	broadcastClient({op : "pseudoList", pseudoList : pseudoList , dth: Date.now()});
+}
+
+exports.sendToPseudo = (pseudo,o) => {
+	targetClient(pseudo,o)
+}
+
+exports.sendToPseudoSimpleText = (pseudo, texte) => {
+	targetClient(pseudo,{ op: "notif", texte: texte, dth: Date.now() } )
 }
 
 exports.isConnected = (pseudo) => {
@@ -53,14 +69,6 @@ exports.isConnected = (pseudo) => {
     if (meta.pseudo==pseudo) return true;
   });
   return false;
-}
-
-exports.sendToPseudo = (pseudo,op, o) => {
-	let jsonMsg = JSON.stringify( { op: op, o: o, dth: Date.now() } );
-	clients.forEach((meta,ws) => {
-		if (meta.pseudo == pseudo) 
-			ws.send(jsonMsg);
-	});
 }
 
 exports.broadcastNotification = (texte, fromPseudo, mp3, toPseudo, toTexte, admin ) => {
@@ -104,6 +112,8 @@ exports.broadcastSimpleOp = (op, o) => {
 	broadcastClient( { op: op, o: o, status:200, dth: Date.now() } );
 }
 
+
+
 exports.start = (wsCallback, port) => {
   const wss = new WebSocket.Server({ port: port });
 
@@ -129,6 +139,9 @@ exports.start = (wsCallback, port) => {
 				let jMsg = JSON.parse(p);
 				console.log("WSmessage:",metadata.pseudo,jMsg);
 				switch (jMsg.op) {
+					case "ff14log":
+						console.log('FF14LOG:',JSON.stringify(jMsg))
+						break;
 					case "iam":
 						let pseudoDesc = await pseudos.asyncSetPwdSession(jMsg.pseudo,jMsg.pwd,jMsg.newPwd,jMsg.signature,jMsg.publicKey,metadata)
 						if (pseudoDesc) {

@@ -2,24 +2,30 @@
 const gbl = require('../infraback/gbl.js');
 const collections = require('../infraback/collections.js');
 const pseudos = require('../infraback/pseudos.js');
-const jetons = require('../infraback/jetons.js');
 const ws = require('../infraback/wsserver.js');
 
 const hautsFaits = collections.get("hautsFaits", true);
 
 const hautsFaitsDesc = {
-		broceliandeInitiatique: { jeton: 0 },
-		uchronieInitiatique:	{ jeton: 0, broadcast: " rejoint le noviciat de l'Uchronie" },
-		geographeJardins:	{ jeton: 0 },
-		Teotihuacan:	{ jeton: 0, broadcast: " a découvert Teotihuacan" },
-		mineralogistes:	{ jeton: 0, broadcast: " est Minéralogiste de l'Uchronie" },
-		dirac:	{ jeton: 0, broadcast: " a activé le Dirac de Quatre" }
+		broceliandeInitiatique: { },
+		uchronieInitiatique:	{ broadcast: " rejoint le noviciat de l'Uchronie" },
+		geographeJardins:	{ },
+		Teotihuacan:	{ broadcast: " a découvert Teotihuacan" },
+		mineralogistes:	{ broadcast: " est Minéralogiste de l'Uchronie" },
+		dirac:	{ broadcast: " a activé le Dirac de Quatre" },
+		hegemonieInitiatique:	{ broadcast: " rejoint le noviciat de l'Hégémonie" },
+		evadePrison:	{ broadcast: " s'est évadé de la Prison des Ames" },
+		decouvreurDeLaSource:	{ broadcast: " a découvert la Station Alpha", libelle: "Découvreur de La Source" },
+		traducteurDesAnciens:	{ libelle: "Traducteur du Langage des Anciens" }
 };
 // init/normalize de la collection si besoin
 function init() {
 	hautsFaits.id ??= {};
 	Object.keys(hautsFaitsDesc).forEach( p => {
-		hautsFaits.id[p] ??= { pseudos: {} } ;
+		hautsFaits.id[p] ??= { }
+		hautsFaits.id[p].pseudos ??= { }
+		hautsFaits.id[p].broadcast ??= hautsFaitsDesc[p].broadcast
+		hautsFaits.id[p].libelle ??= hautsFaitsDesc[p].libelle
 	});
 }
 
@@ -28,16 +34,13 @@ function isDone(pseudo, hautFait) {
 	if (!hautsFaits.id[hautFait]) gbl.exception("hautFait non valide:"+hautFait,400);
 	return (hautsFaits.id[hautFait].pseudos[pseudo]) ? true : false;
 }
-// marque le haut fait retourne 200 si deja fait, 201 si marqué, incrémente les jetons selon le haut fait, broadcast texte si besoin
-function flagIt(pseudo,hautFait) {
+// marque le haut fait retourne 200 si deja fait, 201 si marqué, broadcast texte si besoin, boradcast le hautfait
+function flagIt(pseudo,hautFait, lvl) {
 	if ( isDone(pseudo, hautFait) ) return 200;
-	hautsFaits.id[hautFait].pseudos[pseudo] = { dth: Date.now() };
+	hautsFaits.id[hautFait].pseudos[pseudo] = { dth: Date.now(), lvl: parseInt(lvl,10) || 0 };
 	collections.save(hautsFaits);
-	if (hautsFaitsDesc[hautFait].jeton > 0) jetons.inc(pseudo,hautsFaitsDesc[hautFait].jeton);
-	if (hautsFaitsDesc[hautFait].broadcast) {
-		ws.broadcastSimpleText(pseudo+hautsFaitsDesc[hautFait].broadcast,true);
-		ws.broadcastSimpleOp("hf_"+hautFait, hautsFaits.id[hautFait]);
-	}
+	if (hautsFaitsDesc[hautFait].broadcast) ws.broadcastSimpleText(pseudo+hautsFaitsDesc[hautFait].broadcast,true);
+	ws.broadcastSimpleOp("hf_"+hautFait, hautsFaits.id[hautFait]);
 	return 201;
 }
 
@@ -55,14 +58,14 @@ exports.httpCallback = (req, res, method, reqPaths, body, pseudo, pwd) => {
 		gbl.exception("AllowedCORS",200);
 	}
 	if (method=="PUT") {
-		gbl.exception("Hautfait ok:"+reqPaths[2], flagIt(pseudo,reqPaths[2]) );
+		gbl.exception(hautsFaits.id[reqPaths[2]] || "bad hautfait", flagIt(pseudo,reqPaths[2],reqPaths[3]) );
 	}
 	if (method=="GET") {
 		switch ( reqPaths[2] ) {
 			case "":
 			case null:
 			case undefined:
-				pseudos.check(pseudo,pwd,true);
+				pseudos.check(pseudo,pwd,true); // admin only
 				gbl.exception(hautsFaits,200);
 			default: 
 				const hf = hautsFaits.id[reqPaths[2]]

@@ -612,6 +612,7 @@
 			compétition entre les participants quand il s'agit d'identifier les rubans,
 			mais aussi de la collaboration pour décaler les rubans et découvrir le Nom Secret.
 		</p>
+		<p>
 			Lors de ce mini jeu,
 			<a href="https://www.philolog.fr/le-temps-est-il-notre-ennemi-ou-notre-allie/" target="_blank">
 			le temps sera ton ennemi et ton allié
@@ -622,7 +623,6 @@
 			et d'organiser la coopération entre Aventuriers.
 			<br/>
 			Kikiadoc me dit souvent que l'important c'est qu'il n'y ait pas de perdant, uniquement des valeureux.
-		<p>
 		</p>
 		<p>
 			Pour faciliter le décalage des rubans, il est souhaitable de

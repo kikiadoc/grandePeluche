@@ -109,7 +109,7 @@ function mainThread() {
 			jeu.board = ret.board;
 			collections.save(jeu);
 			// requete refresh client
-			wsserver.sendToPseudo(ret.pseudo,"tictactoe");
+			wsserver.sendToPseudo(ret.pseudo,{op:"tictactoe"});
 		}
   });
 }

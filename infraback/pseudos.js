@@ -1,6 +1,7 @@
 
 const gbl = require('../infraback/gbl.js');
 const lodestone = require('../infraback/lodestone.js');
+const discord = require('../infraback/discord.js');
 const fs = require('fs');
 const https = require('https');
 const { subtle } = require('node:crypto').webcrypto;
@@ -94,6 +95,10 @@ async function definePseudo(body) {
 	const pseudoExist = Object.values(pseudos).find ( (pseudo) => pseudo.ff14Id == ff14Id);
 	if (pseudoExist) gbl.exception("Joueur déjà enregistré via ff14Id",403);
 
+	// verification que le FF14Id est défini sur discord
+	const discordRec = discord.getDiscordByFf14Id(ff14Id)
+	if (!discordRec) gbl.exception("Tu n'es pas validé sur le Discord des Kiki's Events",400);
+
 	// le ff14Id n'est pas encore connu, construit le pseudo en evitant les pseudos existants
 	let suffixe = "";
 	while (pseudos[pseudo+suffixe])
@@ -145,6 +150,13 @@ function checkPseudo(pseudo,password, reqAdmin) {
 	return pseudoDesc;
 }
 
+function getPseudoDescByFf14Id(ff14Id) {
+	for (let pseudo in pseudos) {
+		if (pseudos[pseudo].ff14Id == ff14Id) return pseudos[pseudo]
+	}
+	return null
+}
+
 function deletePseudo (pseudo) {
 	const pseudoDesc = pseudos[pseudo];
 	if ( !pseudoDesc ) gbl.exception("pseudo introuvable", 403);
@@ -152,6 +164,22 @@ function deletePseudo (pseudo) {
 	fs.unlinkSync(gbl.staticFsPath+pseudo+".pseudo");
 	return pseudoDesc;
 }
+
+function deletePseudoByFf14Id (ff14Id) {
+	const pseudoDesc = getPseudoDescByFf14Id(ff14Id)
+	if ( !pseudoDesc ) { console.log('deletePseudoByFf14Id not found', ff14Id); return null } 
+	console.log("deletePseudoByFf14Id", ff14Id,pseudoDesc)
+	const pseudo = pseudoDesc.pseudo
+	try {
+		pseudo && fs.unlinkSync(gbl.staticFsPath+pseudo+".pseudo");
+	}
+	catch(e) {
+		console.log(e)
+	}
+	delete pseudos[pseudo] ;
+	return pseudoDesc;
+}
+
 function clearServerPublicKey(pseudo) {
 	const pseudoDesc = pseudos[pseudo];
 	if ( !pseudoDesc ) gbl.exception("pseudo introuvable", 403);
@@ -219,6 +247,7 @@ exports.check = checkPseudo;
 exports.asyncSetPwdSession = asyncSetPwdSession; 
 exports.httpCallback = httpCallback;
 exports.clearServerPublicKey = clearServerPublicKey;
+exports.deletePseudoByFf14Id = deletePseudoByFf14Id
 
 console.log("Pseudos loaded");
 

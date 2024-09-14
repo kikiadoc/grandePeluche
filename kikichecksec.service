@@ -4,6 +4,7 @@ Description={kikichecksec}
 [Service]
 Type=simple
 User=ec2-user
+Group=ec2-user
 WorkingDirectory=/home/ec2-user/checksec
 RestartSec=10
 StandardOutput=syslog

@@ -11,41 +11,54 @@ const WebSocket = require('ws');
 
 const discordUrlPrefix="https://discord.com/api/v10"
 const discordHeaders = {
-			"User-Agent": "DiscordBot (https://ff14.adhoc.click], 1.0.0)",
+			"User-Agent": "DiscordBot (https://ff14.adhoc.click], 1.0.1)",
 			"Content-Type": "application/json; charset=UTF-8",
 			"Authorization": 'Bot ' + vault.get('discord_token') 
 };
 const mpKikiadoc = "<@289493566278074368>"
 const idKikiadoc = '289493566278074368'
-const discordTrailer =	"\n\nSigné: *L'assistant Discord de la Grande Peluche et porte parole de Kikiadoc*" + 
+const discordTrailer =	"\n\nSigné: *Hildiscord, assistant Discord de la Grande Peluche et porte parole de Kikiadoc*" + 
 												"\n---\nGrande Peluche: <https://ff14.adhoc.click/enjoy>\nSoucis? mp "+mpKikiadoc;
 
+
 // Channels disponibles pour les posts de la grande peluche (pour sécurité)
+/* OBSOLETE
 const postChannels = {
-	test: 					"1238175196859469925",	// KIKITEST
 	annonces: 			"1151925290570874951",	// Kiki's event, canal public annonces
 	avant2024: 			"1182706199414710272",	// Kiki'event PROD (l'avant 2024)
-	discussion: 		"1143946654270111785",  // discussion
 	jungleBoogie: 	"1189564888570396702",  // Kiki'event PROD jungleBoogie
 	deepAI: 				"1194723860990398496",	// channel de deepai
 	uchronie: 			"1208202103219036160",	// channel de notif de l'event
 	innommable: 		"1241849680598401075"		// channel de l'innommable
 }
+*/
 
 // Selon le mode PROD ou STAGIN/DEV
 const prod={
+	testChanId:	"1039491017017143356",	// KIKITEST
+	annoncesChanId:	"1151925290570874951",	// Kiki's event, canal public annonces
+	discussionChanId:	"1143946654270111785",  // discussion
+	checksecChanId:	"1280101334586097795",  // checksec
 	changeMsgId : '1193712182010060860',	// message d'intoduction
-	roleId: '1193328520416477294',
+	roleId: '1193328520416477294', // role aventurier
 	guildId: '934449346655715378', // kiki's event
 	welcomeId: '991283998389174272', // kiki's event welcome chan
 	deepAiChanId: '1194723860990398496', // channel de deepai
+	hegemonieChanId: '1279762365075951646', // channel de l'hegemonie de prod
+	hegemonieRoleId: '1279762907701186624', // roleId de l'hegemonie de prod
 }
 const staging={
-	changeMsgId : '1193157704714289222',
-	roleId: '1193326340250808330',
+	testChanId:	"1039491017017143356",	// KIKITEST
+	annoncesChanId:	"1279857314261766214",	// KIKITEST
+	discussionChanId:	"1279859331386314793",  // discussion
+	checksecChanId:	"1280101334586097795",  // checksec
+	changeMsgId : '1278263907156492409', // '1193157704714289222',
+	roleId: '1193326340250808330', // role aventurier
 	guildId: '573082763641618432', // kiki's perso
-	welcomeId: '573082763641618434', // kiki's perso welcome chan
-	deepAiChanId: '1195463916776591370', // channel de deepai de test
+	welcomeId: '1071753391262416957', // '573082763641618434', // kiki's perso welcome chan
+	deepAiChanId: '1195463916776591370', // channel de deepai
+	hegemonieChanId: '1279764642234761258', // channel de l'hegemonie de test
+	hegemonieRoleId: '1279764689936449620', // roleId de l'hegemonie de test
 }
 
 // contexte d'execution selon dev/prod
@@ -102,10 +115,44 @@ function setDiscordPseudo(guildId,usrId,ff14Id,prenom,nom,monde) {
 	discordPseudos[guildId][ff14Id] = {usrId:usrId, guildId:guildId, ff14Id:ff14Id, prenom:prenom, nom:nom, monde:monde }
 	collections.save(discordPseudos);
 }
-function deleteDiscordPseudo(guildId,usrId) {
+
+function getDiscordByUsrId(usrId) {
+	for (let guildId in discordPseudos) {
+		if (guildId=='name') continue
+		for (let ff14Id in discordPseudos[guildId]) {
+			let e = discordPseudos[guildId][ff14Id]
+			if (e.usrId==usrId) return e
+		}
+	}
+	return null;
+}
+
+function getDiscordByFf14Id(reqFf14Id) {
+	for (let guildId in discordPseudos) {
+		if (guildId=='name') continue
+		let e = discordPseudos[guildId][reqFf14Id]
+		if (e) return e
+	}
+	return null;
+}
+
+async function deleteDiscordPseudo(guildId,usrId) {
 	discordPseudos[guildId] ??= {}
-	// balaye les trucs en supprimant les élément avec le usrId
-	Object.values(discordPseudos[guildId]).forEach( (e) => { if (e.usrId == usrId) delete discordPseudos[guildId][e.ff14Id] } );
+	// recup du ff14Id
+	const e = getDiscordByUsrId(usrId)
+	const ff14Id = e && e.ff14Id
+	console.log('DeleteDiscordPseudo: (guildId,usrId,ff14Id)',guildId,usrId,ff14Id)
+	// supprime le FF4Id
+	delete discordPseudos[guildId][ff14Id]
+	collections.save(discordPseudos);
+	// supprime le pseudo du site
+	const delSite = pseudos.deletePseudoByFf14Id(ff14Id)
+	await discordPostMessagePrive(usrId,null,
+		"Coucou!\nJ'ai noté que tu as quitté les fonctions de ce discord" +
+		"\nJe t'ai aussi supprimé du site de la Grande Peluche" +  
+		"\nSi tu souhaites te reinscrire, suis la procédure sur le canal de bienvenue"+
+		"\nClic <#"+runCtx.welcomeId+"> pour retourner directement sur le discord\n"
+	);
 }
 
 ////////////////////////////////////////////
@@ -124,14 +171,14 @@ async function discordGetGuild(guildId) {
 	return guilds[guildId];
 }
 // postMessage sur un channel nommé de discord (test si le chan est un autorisé)
-async function discordPostMessage(chan,texte,everyone) {
-	let channelId = postChannels[chan];
+async function discordPostMessage(chan,texte,everyone,ttsReq) {
+	let channelId = runCtx[chan+"ChanId"];
 	if (!channelId ) gbl.exception("discord bad chan",400);
 	const discordUrl=discordUrlPrefix+"/channels/"+channelId+"/messages"
-	const postBody = {
-		content:	((everyone)? ".@everyone\n" : ".\n" ) + texte + discordTrailer,
-		tts: false
-	}
+	const postBody = (ttsReq)?
+		{ content:	texte, tts: true }
+		:
+		{ content:	((everyone)? ".@everyone\n" : ".\n" ) + texte + discordTrailer, tts: false }
 	console.log("discordPostMesssage:",discordUrl,'POST','body:',postBody,'headers:',discordHeaders);
 	let ret = await gbl.apiCall(discordUrl,'POST',postBody,discordHeaders);
 	// console.log("discordPostMessage ret=:",ret);
@@ -186,7 +233,7 @@ async function discordUpdateMessage(chanId,msgId,texte, components, noSignature)
 	if (ret.status != 200) console.log("discordUpdateMessage ERROR url:",discordUrl,"ret:",ret);
 	return ret.id
 }
-// delete un message
+// delete un message (204=succes)
 async function discordDeleteMessage(chanId,msgId) {
 	// /channels/{channel.id}/messages/{message.id}
 	const discordUrl=discordUrlPrefix+"/channels/"+chanId+"/messages/"+msgId
@@ -194,6 +241,26 @@ async function discordDeleteMessage(chanId,msgId) {
 	let ret = await gbl.apiCallHtml(discordUrl,'DELETE',null,discordHeaders);
 	if (ret.status != 204) console.log("discordDeleteMessage ERROR url:",discordUrl,"ret:",ret);
 	return ret;
+}
+// ajoute un role à un usrid (204 = succes)
+async function addRole(usrId,roleId) {
+	// PUT /guilds/{guild.id}/members/{user.id}/roles/{role.id}
+	const guildId = runCtx.guildId
+	const discordUrl=discordUrlPrefix+"/guilds/"+guildId+"/members/"+usrId+"/roles/"+roleId
+	// usage de apiCallHtml car pas de json résultat.
+	let ret = await gbl.apiCallHtml(discordUrl,'PUT',null,discordHeaders);
+	if (ret.status != 204) console.log("discordAddRole ERROR url:",discordUrl,"ret:",ret);
+	return ret
+}
+// retire un role à un usrid (204 = succes)
+async function removeRole(usrId,roleId) {
+	// DELETE /guilds/{guild.id}/members/{user.id}/roles/{role.id}
+	const guildId = runCtx.guilId
+	const discordUrl=discordUrlPrefix+"/guilds/"+guidId+"/members/"+usrId+"/roles/"+roleId
+	// usage de apiCallHtml car pas de json résultat.
+	let ret = await gbl.apiCallHtml(discordUrl,'DELETE',null,discordHeaders);
+	if (ret.status != 204) console.log("discordRemoveRole ERROR url:",discordUrl,"ret:",ret);
+	return ret
 }
 
 
@@ -254,13 +321,13 @@ async function discordProcessSetupPseudo(usrId,tblMots) {
 	let reqId = getTransaction(usrId,"reqIdentificationMessage")
 	// si pas de requete en cours
 	if (!reqId || !reqId.msgId || !reqId.guild) {
-		discordPostMessagePrive(usrId,null,"Je ne t'ai pas demandé ton pseudo FF14! ");
+		await discordPostMessagePrive(usrId,null,"Je ne t'ai pas demandé ton pseudo FF14! ");
 		return;	
 	}
 	// verif des parametres
 	if (tblMots.length < 4) { discordPostMessagePrive(usrId,null,"Tu n'as pas indiqué ton prenom nom et monde, recommence"); return; }
 	if (tblMots[1].length > 20 || tblMots[2].length > 20 || tblMots[3].length > 20 ) {
-		discordPostMessagePrive(usrId,null,"Ton prénom, nom et monde ne sont pas valides, recommence");
+		await discordPostMessagePrive(usrId,null,"Ton prénom, nom et monde ne sont pas valides, recommence");
 		return;
 	}
 	let prenom = gbl.capitalizeFirstLetter(tblMots[1]);
@@ -288,15 +355,13 @@ async function discordProcessSetupPseudo(usrId,tblMots) {
 	let exist = getDiscordPseudo(reqId.guild.id,ff14Id)
 	if (exist) {
 		// le FF14ID existe dans le discord
-		await discordUpdateMessage(chanId,msgId,"**__Ton pseudo FF14 est déjà associé à un Aventurier sur ce discord__**.\n"+
+		await discordUpdateMessage(chanId,msgId,"**__Ton pseudo FF14 (idFF14:"+ff14Id+") est déjà associé"+
+			" à un Aventurier sur ce discord__**.\n"+
 			"Je ne peux donc te l'attribuer ni te donner accès au reste de ce discord.\n"+
 			"C'est une anomalie importante, la cause la plus grave étant que quelqu'un d'autre a déjà utilisé ton compte FF14.\n"+
 			"Aussi, **__il FAUT que tu contactes__** "+mpKikiadoc );
 		return
 	}
-
-	// efface le requete en cours
-	setTransaction(usrId,"reqIdentificationMessage",null)
 
 	// le FF14ID n'est pas utilisé coté discord
 	// on peut donc mettre à jour le discord concerné
@@ -308,11 +373,18 @@ async function discordProcessSetupPseudo(usrId,tblMots) {
 	const discordBody= { nick: nick , roles: [runCtx.roleId] }
 	console.log("PATCH:",discordUrl,"body:",discordBody);
 	let ret = await gbl.apiCall(discordUrl,'PATCH',discordBody,discordHeaders);
-	if (ret.status != 200) {
+	// cas particulier de l'admin discord
+	if (ret.status==403 && ret.code==50013 && prenom=="Kikiadoc" && tblMots[4]=="admin") {
+		console.log("Bypass sécurité")
+	}
+	else if (ret.status != 200) {
 		console.log("***** Erreur discord:",ret);
 		await discordUpdateMessage(chanId,msgId,"J'ai un soucis technique avec Discord pour honorer ta requête ("+ret.status+"/"+ret.code+"), refais ta tentative et si cela se reproduit, MP "+mpKikiadoc)
 		return;
 	}
+
+	// efface le requete en cours
+	setTransaction(usrId,"reqIdentificationMessage",null)
 	
 	// Sauvegarde l'association
 	setDiscordPseudo(reqId.guild.id,usrId,ff14Id,prenom,nom,monde)
@@ -322,12 +394,12 @@ async function discordProcessSetupPseudo(usrId,tblMots) {
 		"J'ai eu confirmation du Lodestone de FF14 de l'existance de ton perso (FF14ID="+ff14Id+").\n"+
 		"Je t'ai attribué le pseudo **"+nick+"** sur le discord **"+reqId.guild.name+"**, "+
 		"et nommé Aventurier, afin que tu puisses accéder à l'ensemble du discord\n"+
-		"J'ai aussi fait le lien entre la Grande Peluche et Discord, "+
-		"afin que tu puisses pleinement profiter de futurs challenges.\n"+
-		"Enfin, j'ai inscris ton pseudo sur le Grimoire de Sécurité de la Grande Peluche," +
+		"J'ai inscris ton pseudo sur le Grimoire de Sécurité de la Grande Peluche," +
 		"afin que personne d'autre que toi ne puisse utiliser ton perso FF14 sur ce discord.\n" +
-		"Clic <#"+runCtx.welcomeId+"> pour retourner directement sur le discord\n" +
-		"**__N'oublie pas de i'inscrire aussi sur le site de la Grande Peluche__**" 
+		"\n**__Tu peux maintenant t'inscrire sur le site de la Grande Peluche__**\n"  +
+		"<https://ff14.adhoc.click/enjoy>\n"+
+		"Si tu ne t'inscris pas sur le site tu ne pourras pas participer aux mini-jeux et événements\n"+
+		"\nClic <#"+runCtx.welcomeId+"> pour retourner directement sur le discord\n"
 	);
 }
 
@@ -546,7 +618,7 @@ async function discordProcessMessagePrive(msg) {
 	if (!isTransactionActive(msg.d.author.id)) {
 		console.log('Discord MP: Pas de transaction active, ignore');
 		if (gbl.isProd())
-			discordPostMessagePrive(msg.d.author.id,null,"Pourquoi me sors-tu de mon mode veille?\nJe ne vois aucune conversation en cours entre nous.");
+			await discordPostMessagePrive(msg.d.author.id,null,"Pourquoi me sors-tu de mon mode veille?\nJe ne vois aucune conversation en cours entre nous.");
 		return
 	}
 	
@@ -565,7 +637,7 @@ async function discordProcessMessagePrive(msg) {
 			break;
 	}
 	let msgTruncated = (msg.d.content)? msg.d.content.substring(0,10) : "rien";
-	discordPostMessagePrive(msg.d.author.id,null,"je n'ai pas compris ce que tu m'as dit ("+msgTruncated+"...)");
+	await discordPostMessagePrive(msg.d.author.id,null,"je n'ai pas compris ce que tu m'as dit ("+msgTruncated+"...)");
 }
 ////////////////////////////////////////////
 // generique, gestion d'un message public
@@ -626,7 +698,7 @@ async function discordProcessMessageReactionAdd(msg) {
 				let guildDesc = await discordGetGuild(msg.d.guild_id);
 				// stocke le contexte transactionnel
 				setTransaction(msg.d.user_id,"reqIdentificationMessage", { msgId: msg.d.message_id, guild: guildDesc } )
-				discordPostMessagePrive(msg.d.user_id,null,
+				await discordPostMessagePrive(msg.d.user_id,null,
 						"Coucou!\nIndique moi ton pseudo COMPLET dans FF14 par un message dans ce canal " +
 						"sous la forme *jesuis __prénom__ __nom__ __monde__* (ex: jesuis Kikiadoc Lepetiot Moogle) " +  
 						"afin que je t'autorise l'accès complet du discord **" + guildDesc.name +"**"
@@ -649,7 +721,7 @@ async function discordProcessMessageReactionDelete(msg) {
 				console.log("PATCH:",discordUrl,"body:",discordBody);
 				let ret = await gbl.apiCall(discordUrl,'PATCH',discordBody,discordHeaders);
 				if (ret.status != 200) console.log("***** Erreur discord:",ret);
-				deleteDiscordPseudo(msg.d.guild_id,msg.d.user_id)
+				await deleteDiscordPseudo(msg.d.guild_id,msg.d.user_id)
 			return;
 	}
 	console.log("Discord ReactionDelete non traitée",msg);
@@ -866,7 +938,7 @@ function discordActionsGetById(id) {
 }
 
 // Gestion des actions discord en attente
-function discordActionsProcessQueue() {
+async function discordActionsProcessQueue() {
 	console.log("***DiscordProcessQueue");
 	if (postTimerId) clearTimeout(postTimerId);
 	if (discordActions.waiting.length <=0) return; // plus rien à faire
@@ -881,7 +953,7 @@ function discordActionsProcessQueue() {
 		try {
 			switch (first.o.op) {
 				case "msg":
-						discordPostMessage(first.o.chan,first.o.txt,first.o.all)
+						await discordPostMessage(first.o.chan,first.o.txt,first.o.all)
 						break;
 				default:
 					console.log("*** DiscordProcessQueue: bad op",first);
@@ -928,22 +1000,14 @@ function discordActionsDelete(id) {
 ////////////////////////////////////////////
 // Glocal & exports
 ////////////////////////////////////////////
-exports.mpKiki = discordMpKiki
-exports.postMessage = discordPostMessage;
-
-exports.start = async (callback) => {
-	wsCallback = callback
-	discordConnexion();
-	discordActionsProcessQueue();
-}
-
-exports.httpCallback = (req, res, method, reqPaths, body, pseudo, pwd) => {
-	pseudos.check(pseudo,pwd,true); // req admin
+exports.httpCallback = async (req, res, method, reqPaths, body, pseudo, pwd) => {
+	pseudos.check(pseudo,pwd); // check pseudo
 	switch (method) {
 		case "OPTIONS":
-			res.setHeader('Access-Control-Allow-Methods', 'DELETE');
+			res.setHeader('Access-Control-Allow-Methods', 'PUT, DELETE');
 			gbl.exception("AllowedCORS",200);
 		case 'GET':
+			pseudos.check(pseudo,pwd,true); // req admin
 			switch(reqPaths[2]) {
 				case "admClose":
 					if (wsc) wsc.close(1000);
@@ -951,16 +1015,41 @@ exports.httpCallback = (req, res, method, reqPaths, body, pseudo, pwd) => {
 					gbl.exception("ok closed",200);
 				case "admActions":
 					gbl.exception(discordActions,200);
+				case "admGetByFf14Id":
+					gbl.exception(getDiscordByFf14Id(parseInt(reqPaths[3],10)) || { ff14Id: parseInt(reqPaths[3],10), msg:"pas d'info discord" },200);
+				case "admTestTTS":
+					await discordPostMessage("test",reqPaths[3],false,true)
+					gbl.exception(discordPseudos,200);
+			}
+			gbl.exception("bad op",400);
+		case 'PUT':
+			switch(reqPaths[2]) {
+				case "reqGrant":
+					// demande d'un grant discord par le pseudo actuel
+					const pseudoDesc = pseudos.get(pseudo)
+					const discordUser = getDiscordByFf14Id(pseudoDesc.ff14Id)
+					if (!pseudoDesc || !discordUser) gbl.exception("bad pseudoDesc/discordUser",400);
+					const discordUsrId = discordUser.usrId
+					const discordRoleId = runCtx[reqPaths[3]+"RoleId"]
+					const discordChanId = runCtx[reqPaths[3]+"ChanId"]
+					if (!discordRoleId || !discordChanId) gbl.exception("bad role",400);
+					let ret = await addRole(discordUsrId,discordRoleId) 
+					console.log(ret)
+					if (ret.status!=204) gbl.exception('Err addRol/discord',400)
+					await discordPostMessagePrive(discordUsrId,null,
+							"Bravo <@"+discordUsrId+">\nTu peux maintenant voir les messages dans <#"+discordChanId+">")
+					gbl.exception('ok',200)
 			}
 			gbl.exception("bad op",400);
 		case 'POST':
+			pseudos.check(pseudo,pwd,true); // req admin
 			switch(reqPaths[2]) {
 				case "admActions":
 					let o = JSON.parse(body);
 					// verif du channel
-					if (! postChannels[o.chan] ) gbl.exception("discord bad chan",400);
+					if (! runCtx[o.chan+"ChanId"] ) gbl.exception("discord bad chan",400);
 					// Post sur le canal de test pour vérification
-					discordPostMessage("test",o.txt,o.all);
+					await discordPostMessage("test",o.txt,o.all);
 					if (o.id==0)
 						discordActionsAdd(o.dth,o);
 					else
@@ -969,15 +1058,32 @@ exports.httpCallback = (req, res, method, reqPaths, body, pseudo, pwd) => {
 			}
 			gbl.exception("bad op/post",400);
 		case 'DELETE':
+			pseudos.check(pseudo,pwd,true); // req admin
 			switch(reqPaths[2]) {
 				case "admActions":
 					discordActionsDelete(parseInt(reqPaths[3],10));
 					gbl.exception(discordActions,200);
+				case "ff14Id":
+					const e = getDiscordByFf14Id(parseInt(reqPaths[3],10)) 
+					deleteDiscordPseudo(e.guildId,e.usrId) 
+					gbl.exception(e,200);
 			}
 			gbl.exception("bad op/delete",400);
 	}
 	gbl.exception("bad op",400);
 }
+
+
+exports.mpKiki = discordMpKiki
+exports.postMessage = discordPostMessage;
+exports.getDiscordByFf14Id = getDiscordByFf14Id
+
+exports.start = async (callback) => {
+	wsCallback = callback
+	discordConnexion();
+	discordActionsProcessQueue();
+}
+
 
 
 console.log('discord loaded');

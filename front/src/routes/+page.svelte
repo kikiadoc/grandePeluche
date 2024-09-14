@@ -3,37 +3,53 @@
 	// standard
 	import { isLowerNumeric, lowerFirstLetter, capitalizeFirstLetter, isPseudoValid} from './storage.js';
 	import { loadIt, storeIt, clearStorage} from './storage.js';
-	import { addNotification, newInfoPopup, scrollTop} from './storage.js';
-	import { connectToServer, disconnectFromServer, apiCall, apiCallExtern } from './storage.js';
-	import { hhmmss, jjmmhhmmss, countDownTo, geUtcMsFrom } from './storage.js';
+	import { addNotification, newInfoPopup, scrollTop, urlImg} from './storage.js';
+	import { connectToServer, disconnectFromServer, apiCall, getDynMetro, getEpsilon } from './storage.js';
+	import { hhmmss, jjmmhhmmss, hhmmssms, countDownTo, geUtcMsFrom } from './storage.js';
 	import { playSound, playDing, setupAudio, audioTry } from "./storage.js";
 	import { playVideo, closeVideo } from "./storage.js";
 	import { startWakeLock, crypoCreateKeyPair } from "./storage.js";
 
-	import P0 from './P0.svelte';
-	import P1 from './P1.svelte';
-	import P310 from './P310.svelte'; // Nommer l'innomable
-	/*
-	// tag particulier pour l'inport hors environnemnt de dev
-		import P201 from './P_201.svelte';
-	*/
+	import P0 from './z/P0.svelte'
+	import P1 from './z/P1.svelte'
+	 import P310 from './P310.svelte'; // Nommer l'innomable
+	 import P311 from './P311.svelte'; // Benchmark
+	import P330 from './P330.svelte'
+	import P332 from './P332.svelte'
+	import P335 from './P335.svelte'
+	import P340 from './P340.svelte'
+	import P350 from './P350.svelte'
+	import P355 from './P355.svelte'
+	import P360 from './P360.svelte'
 
-	let version='STAGING 24.06.02.18.13';  // SERA MODIFIE LORS DU COMMIT EN STAGING OU PROD ne pas changer
+	let version='STAGING 24.09.08.20.00';  // SERA MODIFIE LORS DU COMMIT EN STAGING OU PROD ne pas changer
+
+	// divers caractères pour copier/coller : ➤▲⏸◀▶▼⏬🔎📽❓✅🆘⚠️⬇️✅🛈➥
+	// ne fonctionne pas sur android 🛈
+	// on:keypress={(e) => e.key=="Enter" && clickSur('domId')}
 
 	// Gestion des reload, refresh etc..
 	onMount(() => {
 		console.log('** Mount **')
 		const splash = document.getElementById("splash")
 		if (splash)	setTimeout(() => {  splash.remove(); } , 1500)
+		// play audio des qu'un click...
+		document.addEventListener("click", audioTry, { once: true });
+		document.addEventListener("click", unknownClic);
 		startWakeLock()
+		startCountDown()
 		init()
 	});
 	onDestroy(() => {
 		disconnectFromServer()
+		stopCountDown()
 		clearTimeout(timerIdList)
+		document.removeEventListener("click", audioTry, { once: true });
+		document.removeEventListener("click", unknownClic);
 	});
 
 	function init() {
+		initList();
 		if (pseudo)
 			connectToServer(wsCbStatus, wsCbMessage,version);
 		else
@@ -42,7 +58,6 @@
 	function initAfterKeyValidation() {
 		playSound();
 		loadJetons();
-		initList();
 		// si la page n'est pas dans la desription, reset la page a 0
 		if (page!=0 && !pageList.find( (e) => { return (e.n == page) } ) ) page=0;
 	}
@@ -57,8 +72,10 @@
 	let pageDone = loadIt('pageDone',[]);
 	let pageComponent = null;
 	let pageDesc = null;
-	let pseudoList=[]; //chargement par WS
-	let showAdmin = false; // affiche les infos d'admin
+	let pseudoList=[] //chargement par WS
+	let showAdmin = false // affiche les infos d'admin
+	let dspAssistance = false // affichage assistance
+	let dspCredits = false // affichage credts
 	// welcome
 	let dspWelcome = loadIt('dspWelcome',true)
 	$: storeIt('dspWelcome', dspWelcome);	
@@ -79,12 +96,88 @@
 		 always: true,
 		 component: P1
 		},
+		{n: 311, texte: "Kiki's Event IX, Benchmark", music: "SonOfSon",
+		 start: geUtcMsFrom(2024, 6, 16, 15, 30, 0),
+		 end: geUtcMsFrom(2024, 6, 28, 8, 0, 0),
+		 viewAfter: true,
+		  component: P311
+		},
+		/*
 		{n: 310, texte: "Nommer l'Innommable", music: "FrontTitles",
 		 start: geUtcMsFrom(2024, 5, 24, 18, 0, 0),
-		 end: geUtcMsFrom(2024, 6, 17, 18, 0, 0),
+		 end: geUtcMsFrom(2024, 6, 6, 18, 0, 0),
 		 viewAfter: true,
-		 component: P310
+		  component: P310
+		},
+		*/
+		{n: 330, texte: "Kiki's Event IX, l'Initiatique", music: "LOTR-connaissances",
+		 start: 0,//geUtcMsFrom(2024, 11, 1, 19, 0, 0),
+		 end: 0,//geUtcMsFrom(2024, 11, 5, 19, 0, 0),
+		 viewAfter: true,
+		 betaTest: true,
+		 component: P330
+		},
+		{n: 332, texte: "Les Nouveaux Anciens", music: "Artemis",
+		 start: 0,//geUtcMsFrom(2024, 11, 1, 19, 0, 0),
+		 end: 0,//geUtcMsFrom(2024, 11, 5, 19, 0, 0),
+		 viewAfter: true,
+		 component: P332
+		},
+		{n: 335, texte: "La doctrine du Mal", music: "X-Files",
+		 start: 0,//geUtcMsFrom(2024, 11, 1, 19, 0, 0),
+		 end: 0,//geUtcMsFrom(2024, 11, 5, 19, 0, 0),
+		 viewAfter: true,
+		 component: P335
+		},
+		{n: 340, texte: "La Conjecture de Syracuse", music: "KanAnErer",
+		 start: 0,//geUtcMsFrom(2024, 11, 1, 19, 0, 0),
+		 end: 0,//geUtcMsFrom(2024, 11, 5, 19, 0, 0),
+		 viewAfter: true,
+		 component: P340
+		},
+		{n: 350, texte: "La Torchère", music: "ShadowArgonath",
+		 start: 0,//geUtcMsFrom(2024, 11, 1, 19, 0, 0),
+		 end: 0,//geUtcMsFrom(2024, 11, 5, 19, 0, 0),
+		 viewAfter: true,
+		 component: P350
+		},
+		{n: 355, texte: "Station Alpha", music: "LOTR-connaissances",
+		 start: 0,// geUtcMsFrom(2024, 11, 1, 19, 0, 0),
+		 end: 0,//geUtcMsFrom(2024, 11, 5, 19, 0, 0),
+		 viewAfter: true,
+		 component: P355
+		},
+		{n: 360, texte: "Les avaloirs", music: "LOTR-connaissances",
+		 start: 0,// geUtcMsFrom(2024, 11, 1, 19, 0, 0),
+		 end: 0,//geUtcMsFrom(2024, 11, 5, 19, 0, 0),
+		 viewAfter: true,
+		 component: P360
+		},
+		{n: 365, texte: "Spartaci", music: "LOTR-connaissances",
+		 start: 0,// geUtcMsFrom(2024, 11, 1, 19, 0, 0),
+		 end: 0,//geUtcMsFrom(2024, 11, 5, 19, 0, 0),
+		 viewAfter: true,
+		 // component: pacman
+		},
+		{n: 365, texte: "Station Omega", music: "LOTR-connaissances",
+		 start: 0,// geUtcMsFrom(2024, 11, 1, 19, 0, 0),
+		 end: 0,//geUtcMsFrom(2024, 11, 5, 19, 0, 0),
+		 viewAfter: true,
+		 // component: pacman
+		},
+		{n: 370, texte: "Vaincre le Mal", music: "LOTR-connaissances",
+		 start: 0,// geUtcMsFrom(2024, 11, 1, 19, 0, 0),
+		 end: 0,//geUtcMsFrom(2024, 11, 5, 19, 0, 0),
+		 viewAfter: true,
+		 // component: pacman
+		},
+		{n: 375, texte: "Epilogue", music: "LOTR-connaissances",
+		 start: 0,// geUtcMsFrom(2024, 11, 1, 19, 0, 0),
+		 end: 0,//geUtcMsFrom(2024, 11, 5, 19, 0, 0),
+		 viewAfter: true,
+		 // component: pacman
 		}
+		
 	];
 
 	/////////////////////////////////////////////////////////////////////
@@ -99,8 +192,6 @@
 	// global react sur param audios
 	$: setupAudio(audioVolume,audioBack,audioAmbiance);
 	
-	// play audio des qu'un click...
-	document.addEventListener("click", audioTry, { once: true });
 	
 	/////////////////////////////////////////////////////////////////////
 	// gestion du changement de page
@@ -153,7 +244,7 @@
 	}
 
 	function wsCbMessage(m) {
-		console.log("wsCbMessage",m);
+		console.log("wsCbMessage",m)
 		let done=false;
 		switch(m.op) {
 			case "pseudoList":
@@ -204,7 +295,7 @@
 		}
 
 		let ret = null; // resulta de requete
-		addNotification("Vérif / lodestone...")
+		addNotification("Vérif / lodestone")
 		// acces lodestone via proxy sur adhoc.click (pour eviter les reponses opaques)
 		ret = await apiCall("/lodestone/check/"+newPseudo+"/"+nomIG+"/"+monde,"GET",null,true)
 		if (ret.status==202) {
@@ -257,7 +348,12 @@
 		}
 		else {
 			addNotification(ret.erreur+"("+ret.status+")","red",60 );
-			newInfoPopup("ATTENTION","il y a eu un soucis lors de l'enregistrement de ton Pseudo","Si besoin, contacter Kikiadoc sur Discord");
+			newInfoPopup("ATTENTION",
+									 [
+										 "il y a eu un soucis lors de l'enregistrement de ton Pseudo",
+										 "Info: "+ret.msg
+									 ],
+									 "Si besoin, contacter Kikiadoc sur Discord");
 		}
 	}
 	
@@ -270,12 +366,13 @@
 	let flagJetonClass="";
 	async function loadJetons() {
 		let json = await apiCall("/collections/jetons");
-		if (json.status == 200)
+		if (json.status == 200) {
 			jetons = json.o.data;
 			if (jetons[pseudo]==undefined)
 				jetons[pseudo] = { solde: 0};
 			flagJetonClass = (jetons[pseudo].solde != lastSoldeJetons) ? "blinkFlag" : "";
 			lastSoldeJetons = jetons[pseudo].solde;
+		}
 	}
 	// Popup jetons
 	let dspJetons=false;
@@ -363,7 +460,7 @@
 	// clic dans la liste
 	function listClick(infoPage) {
 		const dthNow = Date.now();
-		if (infoPage.start==0 || infoPage.end==0) {
+		if (!infoPage.betaActive && infoPage.start==0 || infoPage.end==0) {
 			newInfoPopup(infoPage.texte,"Cette page du Grimoire des Possibles est encore masquée par une épaisse brume éthérée","Aucune info sur la date de début");
 		}
 		else
@@ -392,12 +489,12 @@
 			}
 		}
 		else {
-			if (infoPage.betaTest){
+			if (infoPage.betaActive){
 				newInfoPopup("Accès en avant-première",
 										 ["Tout n'est pas encore finalisé pour "+infoPage.texte,
 											"Si remarque ou soucis, mp @kikiadoc ou message sur #discussions sur discord",
-											"Ce que tu feras en avant-première pourra être réinitialisé si besoin",
-											"mais tes gains éventuels resteront acquis"],
+											"Ce que tu feras en avant-première pourra être réinitialisé si besoin mais tes gains éventuels resteront acquis"
+										 ],
 										  "Amuses-toi bien!");
 				page=infoPage.n;
 				return;
@@ -446,7 +543,7 @@
 				infoPage.lbl = "Terminé " + jjmmhhmmss(infoPage.end);
 			}
 			// beta active ?
-			infoPage.betaActive = infoPage.betaTest && (dthNow <= infoPage.start)
+			infoPage.betaActive = infoPage.betaTest && (infoPage.start==0 || dthNow <= infoPage.start)
 		}
 		timerIdList = setTimeout(setupTimerList,timer);
 		// refresh list
@@ -454,9 +551,51 @@
 	}
 
 	/////////////////////////////////////////////////////////////////////
-	// Gestion de l'assistance
+	// Gestion des tags countdown
 	/////////////////////////////////////////////////////////////////////
-	let dspAssistance = false;
+	// gestion des countdown
+	let timerCountdownId = null
+	function timerCountDown() {
+		let tblElt = document.getElementsByTagName('countdown')
+		let nb = tblElt.length
+		for (let i = 0; i<nb; i++) {
+			let elt = tblElt.item(i)
+			// si timer echu, ne fait rien
+			if (elt.getAttribute('cbDone')) continue
+			let dth = parseInt(elt.getAttribute("dth"),10)
+			// console.log("countDownDth",dth)
+			if (dth>Date.now())
+				elt.innerHTML = countDownTo(dth)
+			else {
+				elt.setAttribute('cbDone',true)
+				elt.innerHTML = elt.getAttribute('txtTimeout') || ""
+				// propage l'event timeout
+				console.log("event cdTimeout...")
+				const event = new Event("cdTimeout",{ bubbles: true} );
+				elt.dispatchEvent(event);
+			}
+		}
+	}
+	function startCountDown() {
+		timerCountdownId = setInterval(timerCountDown,1000)
+		timerCountDown()
+		console.log("startCountdown")
+	}
+	function stopCountDown() {
+		clearInterval(timerCountdownId)
+		console.log("stopCountdown")
+		timerCountdownId = null
+	}
+
+	/////////////////////////////////////////////////////////////////////
+	// Gestion des clics avec attribute gphelp
+	/////////////////////////////////////////////////////////////////////
+	let dspHelp = null
+	function unknownClic(e) {
+		// console.log(e)
+		let gpHelp = e.target.getAttribute("gphelp")
+		if (gpHelp) dspHelp=gpHelp
+	}
 
 </script>
 
@@ -621,7 +760,7 @@
 		padding: 0.5em 0.5em 1.0em 0.5em;
 	}
 	:global(.popupContent) {
-		max-height: 15.9em;
+		max-height: 75vh; /* 15.9em; */
 		min-height: 4em;
 		min-width: 10em;
 		scrollbar-color: white grey;
@@ -696,7 +835,7 @@
 	}
 
 	:global(a) {
-		color: white; /* lightgreen; */
+		color: lightgreen; /* lightgreen; */
 		text-decoration: unset; /* underline; */
 		cursor: pointer;
 	}
@@ -709,13 +848,42 @@
   content: "🔎";
   color: lightgreen;
 	}
+	:global(.videoLink) {
+		color: lightgreen; /* lightgreen; */
+		text-decoration: unset; /* underline; */
+		cursor: pointer;
+	}
+	:global(.videoLink:hover) {
+		color:lightgreen;
+		text-decoration: unset; /* underline; */
+		cursor: pointer;
+	}
+	:global(.videoLink:after) {
+  content: "📽";
+  color: lightgreen;
+	}
 
-	:global(.buttonGreen) {
-		background-color: lightgreen;
+	:global(.parchemin) {
+	  border: 0.5em 1em;
+		padding: 1em 2em;
+		border-color: rgb(0, 0, 0, .2);
+	  border-image-source: url("https://filedn.eu/lxYwBeV7fws8lvi48b3a3TH/ff-7/parchemin.png");
+		border-image-repeat: stretch;
+		border-image-slice: 3% 5% fill;
 	}
-	:global(.buttonRed) {
-		background-color: red;
-	}
+	
+	:global(.info) { font-style: italic; font-size: 0.8em }
+
+	:global(.gpHelp) { cursor: pointer }
+
+	:global(sup) { color:lightblue }
+
+	:global(.buttonGreen) { background-color: lightgreen }
+	:global(.buttonRed) { background-color: red }
+
+	:global(.selOui) { border: 4px inset red; cursor: pointer }
+	:global(.selNon) { border: 4px outset #404040; cursor: pointer }
+	:global(.selBad) { border: 4px solid #303030; color: #404040 }
 
 </style> 
 
@@ -759,14 +927,13 @@
 	<!-- video 1920 x 1080 -->
 	<div id="divVideo" class="divVideo">
 		<div class="close" on:click={closeVideo} on:keypress={null} role="button" tabindex=0>X</div>
-		<video id="video" class="video stars" width="1920" height="1080" autoplay controls disablePictureInPicture
-			playsinline onloadstart="this.volume={audioVolume/100}">
+		<video id="video" class="video stars" width="1920" height="1080" controls >
 			<track kind="captions" />
-		</video> 
+		</video>
 	</div>
 
-	<div id="infoPopup" class="popupCadre stars" style="z-index:8000; visibility: hidden" onclick="document.getElementById('infoPopup').style.visibility='hidden'">
-		<div class="close">X</div>
+	<div id="infoPopup" class="popupCadre stars" style="z-index:8000; visibility: hidden" >
+		<div class="close" onclick="document.getElementById('infoPopup').style.visibility='hidden'">X</div>
 		<div class="popupZone">
 			<div class="popupContent">
 				<div id="info1" class="info1">info 1</div>
@@ -821,7 +988,7 @@
 						</label>
 					</div>
 			{:else}
-				<div>Voici ce que je connais de tes Possibles:</div>
+				<div>Voici la liste de tes Possibles:</div>
 				<div class="active">
 					👉 
 					<a class="active" target="_blank" 
@@ -861,8 +1028,7 @@
 			{/if}
 			<hr/>
 			<div style="cursor: pointer; color:lightgreen" on:click={() => dspAssistance = !dspAssistance} role="button" tabindex=0 on:keydown={null}>
-				👉 Assistance technique
-				{#if dspAssistance}⏫{:else}⏬{/if}
+				👉 Assistance technique	{#if dspAssistance}⏫{:else}⏬{/if}
 			</div>
 			{#if dspAssistance}
 				<div class="adminCadre">
@@ -874,14 +1040,6 @@
 						</a>
 					</div>
 					<hr />
-					<div>Si tu souhaites des informations techniques sur la conception du site:</div>
-					<div>
-						👉
-						<a class="active" href="https://filedn.eu/lxYwBeV7fws8lvi48b3a3TH/Architecture et conception du site ff14.adhoc.click.pdf" target="_blank">
-							Deep dive technique
-						</a>
-					</div>
-					<hr />
 					<div>N'utilise l'option suivante qu'en cas de soucis et après avoir contacté Kikiadoc sur discord</div>
 					<div>
 						👉 <span style="cursor: pointer; color: red" on:click={clearStorage} role="button" tabindex=0 on:keydown={null}>
@@ -889,6 +1047,66 @@
 					</div>
 				</div>
 			{/if}
+			{#if pseudo}
+				<div style="cursor: pointer; color:lightgreen" on:click={() => dspCredits = !dspCredits} role="button" tabindex=0 on:keydown={null}>
+					👉 Crédits {#if dspCredits}⏫{:else}⏬{/if}
+				</div>
+			{/if}
+			{#if dspCredits}
+				<div class="adminCadre" style="font-size: 0.7em; font-style: italic;">
+					<div>
+						<a class="active" href="https://filedn.eu/lxYwBeV7fws8lvi48b3a3TH/Architecture et conception du site ff14.adhoc.click.pdf" target="_blank">
+							Le code du site	et sa documentation technique
+						</a>
+						sont publiques, copiables et libres de droits.
+						Licenses:
+						<a class="active" href="https://fr.wikipedia.org/wiki/Licence_publique_g%C3%A9n%C3%A9rale_GNU" target="_blank">GPL</a>
+						et
+						<a class="active" href="https://fr.wikipedia.org/wiki/Licence_CC0" target="_blank">CC0</a>
+					</div>
+					<div>Ce site utilise différentes ressources lors de l'éxécution ou pendant la phase de développement:</div>
+					<div>Des polices de caractères téléchargeables <a class="active" href="https://fonts.google.com/" target="_blank">Google Fonts</a></div>
+					<div>Des samples de musiques et vidéos remixées depuis différentes sources dont
+						<a class="active" href="https://youtube.com/" target="_blank">Youtube</a>
+					</div>
+					<div>Des fragments de code refactorés depuis
+						<a class="active" href="https://github.com/" target="_blank">Github</a>
+						ou
+						<a class="active" href="https://stackoverflow.com/" target="_blank">Stackoverflow</a>
+					</div>
+					<div>
+						Mention spéciale à Dale Harvey dont plusieurs centaines de lignes de code sont incluses dans le Kiki's Event IX:
+						<a class="active" href="https://github.com/daleharvey/pacman" target="_blank">https://github.com/daleharvey/pacman</a>.
+					</div>
+					<div>
+						Des informations sont récupérées dynamiquement depuis les sites
+						<a class="active" href="https://fr.finalfantasyxiv.com/lodestone/playguide/db" target="_blank">Lodestone FF14</a>,
+						<a class="active" href="https://www.garlandtools.org" target="_blank">Garland</a>
+						<a class="active" href="https://ipinfo.io" target="_blank">ipinfo.io</a>
+						et
+						<a class="active" href="https://www.ipify.org" target="_blank">ipify.org</a>
+					</div>
+					<div>
+						Des images uploadées par les joueurs sont anonymisées puis publiées sur
+						<a class="active" href="https://www.pcloud.com/fr/eu" target="_blank">pCloud.com</a>
+					</div>
+				</div>
+			{/if}
+			<div style="font-size: 0.7em; font-style: italic;">
+				Sur ce site, ta vie privée est préservée au maximum:
+				aucun cookie tiers, pas de lien avec d'autres sites, pas de publicite, pas de traçage. 
+				Le stockage des informations nécessaires privilégie le stockage local sur ton appareil, 
+				le serveur ne conserve que ton pseudo IG, ta clé publique pour valider ton pseudo
+				et les infos strictement liées aux challenges, ta sécurité et celle du site.
+				<div class="br"/>
+				Pour assurer ta sécurité, tout en restant simple d'usage, tes transactions sont protégées
+				contre l'usurpation d'identité par des clés éphémères et signées par
+				une clé privée élliptique stockée uniquement sur ton appareil.
+				Ces clés sont générées de façon transparente et sans action de ta part, 
+				afin que tu ne puisses pas réutiliser 
+				un mot de passe utilisé sur un autre site et ne pas t'obliger à utiliser 
+				tes identifiants Google, Discord, FesseLivre, TikToqué ou autres...
+			</div>
 		{/if}
 		{#if page != 0}
 			<!-- inclusion dynamique d'un composant Pnnn -->
@@ -897,6 +1115,9 @@
 					bind:page={page}
 					bind:pageDone={pageDone} 
 					bind:pseudoList={pseudoList}
+					bind:audioBack={audioBack}
+					bind:audioAmbiance={audioAmbiance}
+					bind:audioVolume={audioVolume}
 					pageDesc={pageDesc}
 					wsCallComponents={wsCallComponents} pseudo={pseudo}
 				/>
@@ -907,25 +1128,6 @@
 			{/if}
 		{/if}
 	
-		{#if page == 0}
-			<p style="font-size: 0.7em">
-				Sur ce site, ta vie privée est préservée au maximum:
-				aucun cookie tiers, pas de lien avec d'autres sites, pas de publicite, pas de traçage. 
-				Le stockage des informations nécessaires privilégie le stockage local sur ton appareil, 
-				le serveur ne conserve que ton pseudo IG, ta clé publique pour valider ton pseudo
-				et les infos strictement liées au mode multijoueurs, certains challenges ou ta sécurité et celle du site.
-			</p>
-			<p style="font-size: 0.7em">
-				Pour assurer ta sécurité, tout en restant simple d'usage, tes transactions sont protégées
-				contre l'usurpation d'identité par des clés éphémères et signées par
-				une clé privée élliptique stockée uniquement sur ton appareil.
-				Ces clés sont générées de façon transparente et sans action de ta part, 
-				afin que tu ne puisses pas réutiliser 
-				un mot de passe utilisé sur un autre site et ne pas t'obliger à utiliser 
-				tes identifiants Google, Discord, FesseLivre, TikToqué ou autres...
-			</p>
-		{/if}
-			
 		<div class="spacer" />
 		<div class="spacer" />
 	</div>
@@ -962,16 +1164,24 @@
 	{#if dspPseudo}
 		{@const desc = loadIt("pseudoDesc",{})}
 		{@const es= loadIt("elipticSecurity",{})}
+		{@const dynMetro= getDynMetro()}
 		<div class="popupCadre papier">
 			<div class="close" on:click={toggleDspPseudo} on:keypress={null} role="button" tabindex=0>X</div>
 			<div class="popupZone">
 				<div class="popupContent">
-					<div>Ton pseudo est {pseudo || ".. ha, mais faut t'identifier"}</div>
-					<div>({desc.prenom} {desc.nom} @{desc.monde})</div>
-					<div>Tu {(es.jwkPrivateKey)? "as une" : "n'as pas de"} clé crypto elliptique sur cet appareil</div>
-					{#if wsStatus==1}
-						<div style="color:lightgreen">Je t'ai bien identifié, mais attention ton pseudo n'est utilisable que sur cet appareil</div>
+					<div>Ton pseudo est {pseudo} ({desc.prenom} {desc.nom} @{desc.monde})</div>
+					{#if es.jwkPrivateKey}
+						<div style="color:lightgreen">
+							Tu as une clé cryptographique elliptique valide sur cet appareil.
+						</div>
 					{:else}
+						<div style="color:red">
+							Tu as n'as pas de clé cryptographique elliptique valide sur cet appareil.
+						</div>
+					{/if}
+					<div>
+					</div>
+					{#if wsStatus!=1}
 						<div style="color:red">
 							Il semble que ton appareil n'a pas été validé par mon Grimoire
 							de Sécurité, alors il te faut contacter Kikiadoc sur Discord pour analyser ta situation
@@ -996,6 +1206,30 @@
 							le son continue même si la fenêtre est minimisée ou cachée
 						</label>
 					</div>
+					<hr />
+					{#if dynMetro} 
+						<div style="font-size: 0.8em">
+							Synchro temps réel:<input type="button" on:click={()=>newInfoPopup("debug",JSON.stringify(dynMetro,null,2))} value="🛈" />
+							<br/>
+							Correction horloge (ε dynamique): {Math.floor(1000*dynMetro.epsilon)/1000}ms
+							<br/>
+							Arrondi pour calcul (ε dynamique): {getEpsilon()}ms
+							<br/>
+							Correction horloge (ε lissé): n/a
+							<br/>
+							Horloge Serveur: {hhmmssms(dynMetro.srv.dth)}
+							<br/>
+							Horloge Locale: {hhmmssms(dynMetro.cliDth)}
+							<br/>
+							DeltaClient: {Math.floor(1000*(dynMetro.cliRes - dynMetro.cliReq))/1000} ms
+							<br/>
+							DeltaServer: {Math.floor(1000*(dynMetro.srv.load + dynMetro.srv.run + 1.0))/1000} ms
+							<br/>
+							Latence: {Math.floor(1000*(( (dynMetro.cliRes - dynMetro.cliReq) - (dynMetro.srv.load + dynMetro.srv.run + 1.0) ) / 2.0))/1000} ms
+						</div>
+					{:else}
+						<div style="color:lightgreen">L'horloge de ton équipement est bien synchronisée sur le temps universel</div>
+					{/if}
 				</div>
 			</div>
 		</div>
@@ -1033,7 +1267,7 @@
 		</div>
 	{/if}
 
-	{#if dspWelcome}
+	{#if dspWelcome && false}
 		<div class="popupCadre papier" style="z-index:99999">
 			<div class="close" on:click={()=>dspWelcome=null} on:keypress={null} role="button" tabindex=0>X</div>
 			<div class="popupZone">
@@ -1064,6 +1298,21 @@
 		</div>
 	{/if}
 	
+	{#if dspHelp}
+		<div class="popupCadre papier" style="z-index:99999">
+			<div class="close" on:click={()=>dspHelp=null} on:keypress={null} role="button" tabindex=0>X</div>
+			<div class="popupZone">
+				<img src={urlImg+"ff-7/ff-7-help.gif"} style="float: right; width: 50%" alt="">
+				<div class="info">Explication:</div>
+				<div class="popupContent">
+					<div>{dspHelp}</div>
+				</div>
+				<div class="info">Ferme ce popup</div>
+				<div style="clear:both" />
+			</div>
+		</div>
+	{/if}
+	
 	{#if dspAdminMsg}
 		<div class="popupCadre papier" style="z-index:99999">
 			<div class="close" on:click={()=>dspAdminMsg=null} on:keypress={null} role="button" tabindex=0>X</div>
@@ -1077,7 +1326,7 @@
 			</div>
 		</div>
 	{/if}
-
+	
 </body>
 	
 <!-- page +page.svelte -->

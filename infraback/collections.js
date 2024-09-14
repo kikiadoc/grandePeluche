@@ -3,6 +3,9 @@ const gbl = require('../infraback/gbl.js');
 const pseudos = require('../infraback/pseudos.js');
 const fs = require('fs');
 
+////////////////////////////////////////////////
+// Gestion des collections et des simpleObjets
+////////////////////////////////////////////////
 
 ////////////////////////////////////////////////
 // initialise les collectsions depuis le FS
@@ -69,6 +72,12 @@ function get(nom, init) {
 	return ret;
 }
 
+function reset(nom) {
+	const ret = { name: nom }
+	collectionsMap.set(nom,ret);
+	return ret
+}
+
 // initialise une collection si elle n'existe pas sur la base du parametre
 // elle n'est pas sauvegardée tant que pas usage de save()
 function init(newCol) {
@@ -85,6 +94,7 @@ function init(newCol) {
 exports.get = get
 exports.save = save
 exports.init = init
+exports.reset = reset
 exports.loadJsonFile = loadJsonFile
 
 exports.stringify = (col) => {
@@ -104,5 +114,35 @@ exports.httpCallback = (req, res, method, reqPaths, body, pseudo, pwd) => {
 
 initCollections();
 
-console.log("Collections loaded");
 
+
+//////////////////////////////////////////////////////////////////////////////////////////////
+// SimpleObject
+//////////////////////////////////////////////////////////////////////////////////////////////
+exports.loadSimpleObject = (name) => {
+	try {
+		const rawObj = fs.readFileSync(gbl.staticFsPath+name+".object");
+		const jsonObj = JSON.parse(rawObj);
+		if (jsonObj.name != name) throw new Error("object "+name+" malformé, reinit");
+		return jsonObj;
+	}
+	catch(e) {
+		console.log(e);
+	}
+	return { name: name }
+}
+
+exports.saveSimpleObject = (name,obj) => {
+	try {
+		if (obj.name != name) throw new Error("object "+name+" malformé, reinit");
+		const jsonStr = JSON.stringify(obj);
+		fs.writeFileSync(gbl.staticFsPath+name+".object",jsonStr);
+		return jsonStr;
+	}
+	catch(e) {
+		console.log(e);
+	}
+	return { name: name }
+}
+
+console.log("collection et simpleObjects loaded");

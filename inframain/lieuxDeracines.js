@@ -169,7 +169,7 @@ function donnerSceptre(dest,pseudo) {
 		let d = incSceptres(dest,1)
 		f = incSceptres(pseudo,-2)
 		// maj sceptres dest
-		wsserver.sendToPseudo(dest,"ld_sceptres", {s:  d } )
+		wsserver.sendToPseudo(dest,{op: "ld_sceptres", s:  d } )
 		// broadcast info
 		wsserver.broadcastNotification(pseudo+" a donné un sceptre à "+dest)
 		// maj sceptres sources via la réponse

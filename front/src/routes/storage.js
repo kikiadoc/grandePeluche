@@ -1,6 +1,7 @@
 const APITYPE='test';
 
 export const urlImg = 'https://filedn.eu/lxYwBeV7fws8lvi48b3a3TH/';
+export const urlCdn = 'https://filedn.eu/lxYwBeV7fws8lvi48b3a3TH/';
 const urlApi = 'https://api.adhoc.click/api'+APITYPE;
 const wsUrl = 'wss://api.adhoc.click:443/ws'+APITYPE+'/';
 
@@ -15,6 +16,8 @@ export function isLowerNumeric(str) { return /^[a-z0-9]+$/g.test(str); }
 export function alphanum2placer(str) { return (str)? str.replace(/[a-z0-9]/g,"﹇") : str; } 
 export function capitalizeFirstLetter(str) { return str.charAt(0).toUpperCase() + str.slice(1); }
 export function lowerFirstLetter(str) { return str.charAt(0).toLowerCase() + str.slice(1); }
+
+export function roundFloat(v,f) { return Math.floor(v*(f||10)) / (f||10) }
 
 // return le dth d'une string JJ/MM HH:MM, ou 0 si bad format
 export function parseJJMMHHMM(s) {
@@ -89,10 +92,13 @@ export function duree(ms) {
 
 // ms est un nombre de millisecond
 export function ssms(ms) {
-	if (ms) {
+	if (ms>0) {
 		return padValue(Math.floor(ms/1000))+"."+padValue3(ms%1000);
 	}
-	return "--.---";
+	if (ms<0) {
+		return "-"+padValue(Math.floor((-ms)/1000))+"."+padValue3((-ms)%1000);
+	}
+	return "00.000";
 }
 
 export function hhmmssms(ms) {
@@ -167,6 +173,11 @@ export function sortCmp(a,b) {
 	// console.log("cmp",a,b)
 	return (a<b)? -1: (a>b)? 1 : 0
 }
+
+export function clickSur(idName) {
+	let domElt = document.getElementById(idName)
+	if (domElt)	domElt.dispatchEvent(new Event("click"));
+}
 ///////////////////////////////////////////////////////////////////////////////////////
 // AFFICHAGE
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -194,10 +205,11 @@ export function addNotification(text,color,timeout,ding) {
 	notifs.appendChild(div);
 	const timeoutId = setTimeout(() => {  div.remove() } , (timeout) ? timeout*1000 : 5000 );
 	div.onclick= function() { div.remove(); clearTimeout(timeoutId) }
-	if (ding)	playDing(ding);
+	if (ding)	playDing(ding)
+	return null
 }
 
-// popup d'info, i1,i2,i3 : libelles, opt: option (si string, url de l'image sinon option {img ding et back })
+// popup d'info, i1,i2,i3 : libelles, opt: option (si string, url de l'image complémentaire sinon option {img ding et back })
 export function newInfoPopup(i1,i2,i3,opt) {
 	let d= document.getElementById("infoPopup");
 	let d1= document.getElementById("info1");
@@ -252,6 +264,7 @@ export function newInfoPopup(i1,i2,i3,opt) {
 	d.className = "popupCadre "+ ((o.back)? o.back : "stars")
 	d.style.visibility = "visible";
 	if (o.ding) { playDing(o.ding) }
+	return null
 }
 ///////////////////////////////////////////////////////////////////////////////////////
 // Websocket / API management
@@ -400,7 +413,7 @@ export async function apiCallExtern(url,method,body)
 	  const json = await res.json();
 		json.status = res.status;
 		if (res.status >= 300)
-				addNotification("Erreur sur "+url+ ": "+json.msg+ "("+ res.status+ ") -- contactez Kikiadoc sur discord", "red", 60);
+				addNotification("Erreur sur "+url+ ": ("+ res.status+ ") -- contactez Kikiadoc sur discord", "red", 60);
 		return json;
 	}
 	catch(e) {
@@ -415,33 +428,49 @@ async function waitWsConnected(url) {
 	return prom;
 }
 
-// appel de l'api de la grande peluche
-// url, mehod, body, noWaitWS: ne pas attendre le WS pour l'api call
+
+// Metrologie dynamique
+let dynMetro = {} // métrologie du dernier apiCall
+export function getDynMetro() { return dynMetro }
+export function getEpsilon() { return Math.round(dynMetro.epsilon || 0.0) }
+// appel api de la grande peluche: url, mehod, body, noWaitWS: ne pas attendre le WS pour l'api call
 export async function apiCall(url,method, body, noWaitWs)
 {
 	try {
-		// si le WS doit être connecte...
+		// le WS doit être connecte pour disposer de la clef crypto éphémère... sauf demande exlicite
 		if (wsStatus!=1 && !noWaitWs) {
+			// si besoin attente de la synchro avec la clef signée et queue la requete API et await le dequeue
 			await waitWsConnected(url)
 		}
 		// console.log("API Call",url);
 		const user = loadIt("pseudo","nondefini");
+		// clef éphémère
 		const pwd = loadIt("pseudoPwd", "00000000-0000-4000-8000-000000000000")
+		dynMetro.cliReq = performance.now()
 		const res = await fetch(urlApi+url+"?u="+user+"&p="+pwd, {
-			method: method? method: 'GET', 	
-			mode: "cors",
-			cache: "no-store",
+			method: method? method: 'GET', mode: "cors", cache: "no-store",
 			body: (body)? JSON.stringify(body) : null
 		});
-	  const json = await res.json()
+		dynMetro.cliRes = performance.now()
+		dynMetro.cliDth = Date.now()
+	  let json = await res.json() // reponse serveur
+		// const cliJson = performance.now() // inutile pour le calcul
+		// metrologie depuis le serveur
+		dynMetro.srv = json.tr || {load: 1.0, run:1.0, dth:Date.now() } // load: lecture requete, run: exécution requete, dth: timestamp serveur
+		// calcul ecart temporel dynamique - disponible par import getEpsilon() ou getMetro()
+		// TODO: prévoir un lissage statistique local pour éviter les pics de latence ??
+		dynMetro.epsilon = dynMetro.cliDth -
+			( ( (dynMetro.cliRes - dynMetro.cliReq) - (dynMetro.srv.load + dynMetro.srv.run + 1.0) ) / 2.0 )
+			- dynMetro.srv.dth
+		// si erreur
+		if (res.status >= 300) addNotification("Erreur sur "+urlApi+url+ ": "+json.msg+ "("+ res.status+ ") -- contacte Kikiadoc sur discord", "red", 60);
+		// force le status hhtp disponible directement dans le json.
 		json.status = res.status
-		if (res.status >= 300)
-				addNotification("Erreur sur "+urlApi+url+ ": "+json.msg+ "("+ res.status+ ") -- contactez Kikiadoc sur discord", "red", 60);
-		return json;
+		return json
 	}
 	catch(e) {
 		console.log(e);
-		addNotification("Erreur imprévue sur "+urlApi+url+ ", contactez Kikiadoc sur discord","red",60);
+		addNotification("Erreur imprévue sur "+urlApi+url+ ", contacte Kikiadoc sur discord","red",60);
 		return { status: 503 };
 	}
 }
@@ -480,7 +509,7 @@ export function clearStorage()
 							"pour continuer un challenge en cours!  Es-tu sûr ?")) {
 		localStorage.clear();
 		location.reload();
-		alert("Vos données locales ont été effacées, si vous voyez ce message, fermez le navigateur ou l'application pour terminer le ménage !");
+		alert("Tes données locales ont été effacées");
 	}
 	return;
 }
@@ -548,7 +577,19 @@ const audioDescs = {
 	"FrontTitles": {mp3: urlMp3+"FrontTitles.mp3#t=00:00:12", vol: 0.8, repeat: 1 },
 	"Extravaganza": {mp3: urlMp3+"Extravaganza.mp3#t=00:00:00", vol: 1.0, repeat: 1 },
 	"MythsSword": {mp3: urlMp3+"MythsSword.mp3#t=00:00:00", vol: 1.1, repeat: 1 },
-	"Applaudissements": {mp3: urlMp3+"Applaudissements.mp3#t=00:00:00", vol: 1.0, repeat: 0 }
+	"Applaudissements": {mp3: urlMp3+"Applaudissements.mp3#t=00:00:00", vol: 1.0, repeat: 0 },
+	"SonOfSon": {mp3: urlMp3+"Argy, Son Of Son - Faust.mp3#t=00:00:00", vol: 1.0, repeat: 1 },
+	"LOTR-connaissances": {mp3: urlMp3+"LOTR-connaissances.mp3#t=00:00:00", vol: 3.0, repeat: 1 },
+	"KanAnErer": {mp3: urlMp3+"ff-7/KanAnErer-extrait.mp3#t=00:00:00", vol: 1.0, repeat: 1 },
+	"ShadowArgonath": {mp3: urlMp3+"ff-7/ShadowArgonath.mp3#t=00:00:25", vol: 1.0, repeat: 1 },
+	"pacmanStart": { mp3: urlMp3+"pacman/FuyezPauvresFous.mp3", vol: 10.0, repeat: 0},
+	"pacmanDie": { mp3: urlMp3+"pacman/die.mp3", vol: 1.0, repeat: 0},
+	"pacmanEatGhost": { mp3: urlMp3+"pacman/eatghost.mp3", vol: 1.0, repeat: 0},
+	"pacmanEatPill": { mp3: urlMp3+"pacman/eatpill.mp3", vol: 1.0, repeat: 0},
+	"pacmanEating": { mp3: urlMp3+"pacman/eating.short.mp3", vol: 1.0, repeat: 0},
+	"pacmanEating2": { mp3: urlMp3+"pacman/eating.short.mp3", vol: 1.0, repeat: 0},
+	"X-Files": { mp3: urlMp3+"ff-7/X-Files.mp3", vol: 1.0, repeat: 1},
+	"Artemis": { mp3: urlMp3+"ff-7/Artemis.mp3", vol: 0.3, repeat: 1},
 };
 
 // flag d'arret musique d'ambiance
@@ -612,7 +653,7 @@ export function audioTry(domElt) {
 
 export function playSound(music,force) {
 	const ap=document.getElementById("musique");
-	console.log("playSound:",music,force,"ambiance:",audioAmbiance,"last ap.url:",ap && ap.src);
+	// console.log("playSound:",music,force,"ambiance:",audioAmbiance,"last ap.url:",ap && ap.src);
 	if (!ap)	{ playDing(); return }
 	const nom = music || loadIt('lastMusic',"oracle");
 
@@ -639,7 +680,7 @@ export function playSound(music,force) {
 	};
 	
 	if (force || (ap.src != newAudio.url) || !isAudioPlaying(ap) ) {
-		// console.log("ap.src",ap.src,"newAudio.url",newAudio.url, "eq:", ap.src != newAudio.url, "audioPlayig:", isAudioPlaying(ap))
+		console.log("ap.src",ap.src,"newAudio.url",newAudio.url, "eq:", ap.src != newAudio.url, "audioPlayig:", isAudioPlaying(ap))
 		ap.src = newAudio.url;
 		ap.loop = false;
 		ap.muted = false;
@@ -682,17 +723,34 @@ export function audioResume() {
 ///////////////////////////////////////////////////////////////////////////////////////
 // GESTION DE LA VIDEO
 ///////////////////////////////////////////////////////////////////////////////////////
-let videoCb=null;
+const videoDesc = {
+	"ff-6-trailer": { mp4: "ff-6-trailer", vol: 1.0},
+	"ff14-innommable-trailer": { mp4: "ff14-innommable-trailer", vol: 1.0},
+	"ff-7-teaser1": {mp4: "ff-7/ff-7-teaser1", vol: 1.0},
+	"ff-7-teaser0c": { mp4: "ff-7/ff-7-teaser0c", vol: 1.0},
+	"ff-7-epique-1": { mp4: "ff-7/ff-7-epique-1", vol: 3.0},
+	"ff-7-epique-2": { mp4: "ff-7/ff-7-epique-2", vol: 2.0},
+	"ff-7-escapeprison": { mp4: "ff-7/ff-7-escapeprison", vol: 3.0},
+	"ff-7-portemagique": { mp4: "ff-7/ff-7-portemagique", vol: 3.0},
+	"ff-7-runetrouvee": { mp4: "ff-7/ff-7-runetrouvee", vol: 1.0},
+	"ff-7-boulier": { mp4: "ff-7/ff-7-boulier", vol: 2.0},
+}
+
+let videoCb=null; // callback actuelle de la video
 
 // cb sera appeleé lors du close video, 
 // dontstopmusique force un video volume à 0, sinon 0.8 du volume audio
 // tTime == "d,e" ou d est le début et e la fin (e optionnel)
 export function playVideo(mp4,cb,tTime) {
 	if (mp4==null) return;
-	videoCb=cb;
 	let divVideo = document.getElementById("divVideo");
 	let video = document.getElementById("video");
 	if (!video) { console.log("ERREUR: tag video introuvable"); return }
+	if (!video.oncanplay) video.oncanplay = function(e) { console.log("video canplay event") }
+	if (!video.oncanplaythrough) video.oncanplaythrough = function(e) { console.log("video canplaythrough event") }
+	if (!video.onemptied) video.onemptied = function(e) { console.log("video emptied event") }
+	if (!video.onloadedmetadata) video.onloadedmetadata = function(e) { console.log("video loadedmetadata event") }
+	if (!video.onloadeddata) video.onloadeddata = function(e) { console.log("video loadeddata event") }
 	if (!video.onplay) video.onplay = function(e) {
 		console.log("video play event")
 		audioPause();
@@ -705,9 +763,15 @@ export function playVideo(mp4,cb,tTime) {
 		console.log("video pause event")
 		audioResume();
 	}
+	
+	const desc = videoDesc[mp4]
+	if (!desc) addNotification("video Mix inv: "+mp4,"red",20)
+	
+	videoCb=cb;
 	divVideo.style.display="block";
-	video.src=urlImg+mp4+".mp4" + ((tTime)? "#t="+tTime :"") ;
-	video.volume= audioVolume*0.8; // manque la parametrage d'equalizer des videos
+	video.src=urlImg+ ( (desc)? desc.mp4 : mp4 ) +".mp4" + ((tTime)? "#t="+tTime :"") ;
+	video.volume= Math.min(audioVolume* ( (desc)? desc.vol : 1 ) ,1) // calcul du volume video
+	console.log("playVideo",video.src,video.volume)
 	tryPlay(video,"Démarrage vidéo impossible, Clique sur la vidéo")
 }
 
@@ -832,3 +896,26 @@ export async function cryptoVerify(texte, hexString) {
 export async function cryptoClearKey() {
 		storeIt("elipticSecurity", null)
 }
+
+/////////////////////////////////////////////////////////////////////
+// gestion des haut fait
+/////////////////////////////////////////////////////////////////////
+// positionne un haut fait
+export async function setHautFait(hf,lvl) {
+	if (hf && lvl) {
+		const ret = await apiCall("/hautsFaits/"+hf+"/"+lvl,'PUT');
+		const lbl = (ret.o && ret.o.libelle) || hf
+		if (ret.status==200) addNotification("Haut fait "+lbl+" dejà obtenu","lightgreen",5)
+		if (ret.status==201) addNotification("Haut fait "+lbl+" obtenu","yellow",10)
+	} 
+}
+// recupere un haut fait
+export async function getHautFait(hf) {
+	const ret = await apiCall("/hautsFaits/"+hf,'GET');
+	if (ret.status==200) return ret.o
+	// dans tous les cas, liste vide
+	return null
+}
+
+
+
